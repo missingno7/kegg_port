@@ -61,10 +61,11 @@ investigate), and start the demo corpus.
 
 ## Risks / unknowns
 
-- **No file opens observed yet** — the title art and level render without the
-  game opening .DIG/.BOB files in our instrumented runs?? Most likely the spy
-  hooked the wrong register (fixed reg index) or opens happened outside the
-  probe window. Verify file I/O soon; assets must flow through AH=3D/3F.
+- ~~No file opens observed~~ **resolved**: the earlier spy read the wrong
+  register (r[3]=EBX, not EDX). Verified opens: `ke_tit.gif` at boot;
+  `ke_menu.gif`, `ke_menu.bob`, `ke_all.pal` after SPACE — the post-SPACE
+  screen is the **menu** (its background is an attract-level scene).
+  Case-insensitive name resolution works.
 - **Timer IRQ0 not exercised**: pacing so far rides the deterministic retrace
   toggle. The game installed no INT 8 vector in observed runs (checked
   pm_vectors) — its 70 fps loop may be pure vsync. Confirm before demos.
@@ -76,10 +77,16 @@ investigate), and start the demo corpus.
 
 ## Next targets
 
-1. Adapt [`scripts/play.py`](../../scripts/play.py) (GameFrontend) so the human
-   can see/play it live — needs a small PM-runtime presenter (render_mode_x +
-   DAC → surface, scancodes → press_scancode).
-2. Verify file I/O + case-resolution against assets/ (open/read/seek paths).
+1. **Human playtest** of the live viewer (`python scripts/play.py`) — controls,
+   menu navigation, whether gameplay starts and feels right; note speed (CPython
+   ~1-2 M instr/s; pypy is the fast path).
+2. Snapshot support for PMRuntime (FlatMemory + CPU386 + host state) —
+   unlocks F12/resume, demo recording, and the frame verifier.
 3. Input-wait registry + first recorded demo (menus → gameplay), then the
    frame verifier over the retrace boundary.
-4. Snapshot support for PMRuntime (FlatMemory + CPU386 + host state).
+4. Sound Blaster detection (game probes DSP at port 0x210/0x21C/0x21E) via
+   dos_re's SoundBlaster model, so the game boots with sound enabled.
+
+Done since: live play runner (`scripts/play.py`, PM viewer: wall-clock vsync
+pacing, KBC scancodes incl. E0 arrows, INT 33h mouse, F10 screenshot,
+--headless smoke); file I/O verified.

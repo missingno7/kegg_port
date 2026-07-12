@@ -4,6 +4,10 @@ Reports where execution halts — the first unimplemented opcode / INT / DOS
 service — which is the next thing to build (charter: fail loud, grow from the
 observed call).
 
+Superseded for general use by the promoted framework CLI:
+    python dos_re/tools/pm_boot.py --exe assets/KE.EXE
+kept here as the game-seeded quick probe.
+
     python -m kegg.probes.run_startup [max_instructions]
 """
 from __future__ import annotations

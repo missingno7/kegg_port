@@ -32,6 +32,17 @@ investigate), and start the demo corpus.
 
 ## Recent findings (newest first)
 
+- 2026-07-13 — **Rendering island: core RLE primitive recovered as clean
+  native code.** `kegg/recovered/rle_blit.py` (`decode_row`/`decode_plane_pass`,
+  pure — no dos_re, layer-audit clean) reproduces the interpreted blitter's
+  plane output **byte-for-byte** on the gameplay snapshot
+  (`tests/test_rle_blit.py`, 4 tests incl. the in-game oracle match).  The
+  full 3-variant blitter is mapped in
+  [`rendering_island.md`](rendering_island.md); composing the recovered hook
+  (reproducing the preamble + sequencer + scratch globals the oracle diffs)
+  is the next slice, built flag-path by flag-path with interpreter fallback.
+
+
 - 2026-07-13 — **The rendering island is located, lifted and oracle-proven.**
   From the human's in-game snapshot (snap_126359171): virtually all gameplay
   time is one routine — the Mode X RLE sprite blitter at 0x1222D1 (runtime;

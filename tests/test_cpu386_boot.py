@@ -32,3 +32,17 @@ def test_startup_runs_c_runtime():
     rt.cpu.run(1_000_000)
     assert rt.cpu.instruction_count == 1_000_000
     assert not rt.cpu.halted
+
+
+def test_sound_blaster_detection():
+    """With the SB attached at KE's probed config ($210/IRQ7/DMA1), the game's
+    hardware-detection must not print the 'cannot find Interrupt' failure and
+    its driver must program the DSP sample rate."""
+    from kegg.runtime import create_game_runtime
+    rt = create_game_runtime(EXE)
+    rt.dos.attach_sound_blaster(base=0x210, irq=7, dma=1)
+    rt.dos.key_queue.append(0x20)
+    rt.cpu.run(6_000_000)                   # through the detection screen
+    text = bytes(rt.dos.console_log).decode("cp437", "replace")
+    assert "cannot find" not in text
+    assert rt.dos.sound_blaster.sample_rate > 0

@@ -36,6 +36,7 @@ def main(argv=None) -> int:
         boot_keys=(0x20,),                 # the boot screen's SPACE prompt
         description=__doc__.splitlines()[0],
         artifacts_dir=ROOT / "artifacts",
+        sound_blaster=(0x210, 7, 1),       # KE's config probes DSP base $210
     )
 
 

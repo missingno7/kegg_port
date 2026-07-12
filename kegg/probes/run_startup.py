@@ -26,6 +26,9 @@ def main(argv) -> int:
     limit = int(argv[0]) if argv else 2_000_000
     rt = create_game_runtime(exe)
     cpu = rt.cpu
+    # Seed the boot-screen prompt: KE's hardware-detection page ends with
+    # "<Press SPACE BAR to continue>" when no Sound Blaster is found.
+    rt.dos.key_queue.append(0x20)
     print(f"entry eip=0x{cpu.eip:X} esp=0x{cpu.r[4]:X}")
 
     # Ring buffer of recent (eip) so a fail-loud stop shows how we got there.

@@ -22,18 +22,13 @@ for p in (str(ROOT), str(ROOT / "dos_re")):
 EXE = ROOT / "assets" / "KE.EXE"
 pytestmark = pytest.mark.skipif(not EXE.exists(), reason="assets/KE.EXE not present")
 
-# Frontier floor: startup currently reaches DPMI DOS-memory allocation.
-BOOT_FLOOR = 15_000
-
-
 def test_startup_runs_c_runtime():
     from kegg.runtime import create_game_runtime
     rt = create_game_runtime(EXE)
-    assert rt.cpu.eip == 0x242D8            # LE entry
-    try:
-        rt.cpu.run(1_000_000)
-    except (NotImplementedError, Exception):  # noqa: BLE001 — any fail-loud stop is fine
-        pass
-    assert rt.cpu.instruction_count >= BOOT_FLOOR, (
-        f"startup regressed: only {rt.cpu.instruction_count} instructions "
-        f"(floor {BOOT_FLOOR})")
+    # LE entry, rebased above 1 MB by the loader (link base 0x242D8).
+    assert rt.cpu.eip == 0x1242D8
+    # The whole first million instructions must execute without a fail-loud
+    # stop (startup runs the full detection screen and beyond).
+    rt.cpu.run(1_000_000)
+    assert rt.cpu.instruction_count == 1_000_000
+    assert not rt.cpu.halted

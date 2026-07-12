@@ -1,8 +1,10 @@
 # Krypton Egg — symbol / address ledger
 
-Flat linear addresses in the LE image (obj1 code @0x10000, obj2 @0x30000,
-obj3 data/stack @0x40000). Status ladder: GUESS → OBSERVED → RECOVERED →
-ASM_MATCHED → VERIFIED → CANONICAL.
+**Link addresses** in the LE image (obj1 code @0x10000, obj2 @0x30000,
+obj3 data/stack @0x40000). **The runtime rebases +0x100000** (image above
+1 MB, like real DOS/4G) — a runtime eip of 0x1242D8 is link 0x242D8. All
+entries below are link addresses. Status ladder: GUESS → OBSERVED →
+RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 
 | Address | What | Status | Evidence |
 |---|---|---|---|
@@ -12,6 +14,21 @@ ASM_MATCHED → VERIFIED → CANONICAL.
 | 0x484a0,0x484b4 | saved initial ESP globals | OBSERVED | stored at 0x24358/0x2435e |
 | 0x484ac | stored selector 0x24 (flat DS?) | OBSERVED | `mov ax,0x24; mov [0x484ac],ax` @0x24364 |
 | 0x484d7/8 | DOS major/minor version | OBSERVED | stored from AL/AH after int21 AH=30h @0x24379 |
+
+| 0x19e35 | **frame boundary: vsync wait** (`in al,3DAh; test al,8`) with spin counter | OBSERVED | hot-loop profile + disasm; the game's present cadence |
+| 0x4e1a8 | vsync spin counter (calibration) | OBSERVED | `inc [0x4e1a8]` in the 3DA wait |
+| 0x23fad | `in al,dx` port-read helper (callee of waits) | OBSERVED | disasm |
+| 0x23fa3 | `out dx,al` port-write helper | OBSERVED | disasm |
+| 0x1cf40 | keyboard-driver command sender: writes cmd byte to [0x47db3], calls 0x21420, waits [0x4e2f4] with 50000-spin timeout | OBSERVED | disasm + KBC bring-up |
+| 0x47db3 | pending keyboard command byte | OBSERVED | ^ |
+| 0x4e2f4 | keyboard ACK-wait flag (cleared by INT 9 ISR) | OBSERVED | ^ |
+| 0x1ff5c | hardware ISR entry (pushal + all segs, cld, calls) — INT 9 handler body | OBSERVED | pm_vectors[9] = obj1+0xff5c region; disasm |
+| 0x256ea | register-block INT dispatcher (Watcom intdosx-style) | OBSERVED | disasm; caller 0x245ad |
+| 0x25722 | dispatcher trampoline selector (lea over `int NN; ret` table @0x257c8) | OBSERVED | disasm |
+| 0x4e56c | C heap free-list head | OBSERVED | crash analysis of the A000h heap collision |
+| 0x264fc | heap free-list walk (malloc path) | OBSERVED | ^ |
+| — | game installs PM vectors 9, A, B, D, F, 71, 72 (no INT 8!) | OBSERVED | pm_vectors dump after boot |
+| — | SPACE make/break 0x39/0xB9 via KBC advances title → gameplay; page flip display_start 0x0→0x4000 | OBSERVED | after_space.png |
 
 ## Notes
 

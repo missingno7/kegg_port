@@ -2,70 +2,84 @@
 
 ## Summary (for the human)
 
-Krypton Egg is a 1994 commercial break-out game built with Watcom C and the
-DOS/4GW extender — it runs in **32-bit protected mode**, which the dos_re VM
-(a 16-bit real-mode CPU) did not understand. So bring-up started one layer
-lower than usual: we had to load the 32-bit program image and build a 386
-protected-mode CPU plus the DOS/4GW services the game calls.
+**The game runs — and it's in-game.** In one session the port went from "the
+VM cannot load this executable at all" to Krypton Egg booting through its whole
+hardware-detection screen, animating its title, responding to a key press, and
+rendering **level-1 gameplay** (bricks, paddle, ball, score bar) — all executed
+by the original game code inside the new 386 protected-mode VM, with correct
+colors and screen layout (verified against the player's reference screenshot).
 
-Progress so far — a lot for one session:
-1. **LE loader** (`dos_re/le.py`): unpacks the executable into a flat 32-bit
-   memory image; all 6296 internal fixups apply cleanly; the entry code
-   disassembles as genuine Watcom startup. Verified by tests.
-2. **A new 386 protected-mode CPU** (`dos_re/cpu386.py`) + a **DOS/4GW host**
-   (`dos_re/dos4gw.py`). Together they now **boot the game and execute ~15,000
-   instructions of its startup** — through the entire Watcom C runtime, the
-   FPU/CPU detection, and VGA detection — before reaching the first thing not
-   yet built (DPMI memory allocation). Everything runs against the original
-   binary as the oracle; no behaviour is guessed.
+What made it possible: a loader for the game's 32-bit executable format, a new
+386 CPU interpreter, an emulated DOS/4GW environment (DOS services, DPMI
+memory, VGA including the "Mode X" trick the game uses for its 70 fps
+rendering, a keyboard controller with real interrupts, and a mouse driver).
+Sound Blaster is not emulated yet — the game politely warns and continues.
 
-Next: DPMI memory allocation (needs a small selector-base decision, below), then
-setting the video mode and drawing the first frame.
+Next: drive the menus properly (keyboard input works now), wire the standard
+play runner with a live window, get file I/O exercised (the game hasn't opened
+its data files yet in our runs — title/gameplay assets appear to be loaded…
+investigate), and start the demo corpus.
 
 ## Where we are
 
-- **Phase:** Bring-up, step 1 (load & run) — **booting; ~15k startup
-  instructions execute**; frontier = DPMI INT 31h AX=0100 (alloc DOS memory)
+- **Phase:** Bring-up, steps 1–3 done (load & run ✓, see output ✓, frame
+  boundary found ✓ — the 3DAh retrace wait at link 0x19e35). Step 2½ (live
+  viewer/input wiring) and steps 4–6 (frame verifier, input-wait registry,
+  first demo) are next.
 - **Native %:** n/a (bring-up)
 - **Demo corpus:** none yet
-- **Open blockers:** B1 resolved (CPU built); B2 open = selector-base model
-  for DPMI DOS memory (design choice) — see blockers.md
+- **Open blockers:** none open (B1, B2 resolved — see blockers.md)
 
 ## Recent findings (newest first)
 
-- 2026-07-12 — **CPU386 + DOS4GWHost boot KE to ~15,111 instructions.**
-  Built a flat-model 386 interpreter (32-bit regs, ModRM+SIB, ALU/shift/rotate,
-  string ops, seg push/pop, x87 FPU ported from `CPU8086.execute_fpu`, bit ops,
-  SHLD/SHRD, SMSW/SIDT, CR access) and a DOS/4GW host (INT 21h/2Fh/10h + the
-  extender probes). Startup path exercised, each service recovered from the ASM:
-  extender probe (INT21 FF00 → native path), FPU infinity probe (`fld1;fldz;
-  fdivp` needs masked 1/0=+inf), sbrk (INT21 ED/4A), IOCTL device-info (44/00),
-  VGA detect (INT10 1A00), XMS absent (INT2F 4300), DPMI probe (INT2F 1687).
-  Proven by: `tests/test_cpu386_boot.py` (floor 15k) + `kegg.probes.run_startup`.
-  Framework suite still green (288 tests), lint clean.
-- 2026-07-12 — **LE loader written and verified** (now `dos_re/le.py`, promoted
-  from the adapter). 3 objects, 38×4 KB pages, 0 imports, flat model; fixup
-  census 6292 off32 + 4 sel16. Proven by `tests/test_le_loader.py`.
+- 2026-07-12 — **GAMEPLAY RENDERS.** After SPACE at the title (scancode via the
+  new 8042 KBC + IRQ1 delivery into the game's INT 9 handler), the game
+  page-flips (display_start 0x4000) into level-1 attract/play. Proven by:
+  `artifacts/after_space.png` vs the player's reference screenshot.
+- 2026-07-12 — **VGA write mode 1** (latched plane copy) implemented for the
+  title→game transition; latches load on every planar read.
+- 2026-07-12 — **LE images must be rebased above 1 MB** (like real DOS/4G):
+  loaded at the link base, the Watcom heap grew into the A000h aperture and
+  planar writes shredded the heap free-list (crash at link 0x2650f with a heap
+  block at 0xa5004). `load_le(rebase=0x100000)` in the runtime; analysis tools
+  keep link addresses. **Runtime eip = link address + 0x100000.**
+- 2026-07-12 — **Mode X planar model** (`VGASequencer` + FlatMemory aperture
+  routing): the game unchains chain-4 after mode 13h; the linear render's
+  "4 copies" artifact resolved into the correct title frame.
+- 2026-07-12 — **IRQ delivery into protected mode**: `CPU386.deliver_interrupt`
+  (32-bit frame, IF/TF clear, IRET-compatible) + `idt` shared with the host's
+  AH=25 vectors; 8042 KBC with per-byte IRQ1 (identify/rate/LED command
+  protocol recovered from the game's driver at link 0x1cf40).
+- 2026-07-12 — Mouse detection = a flat read of real-mode IVT[0x33] (linear
+  0xCC), not INT 33h: `seed_low_memory` populates BIOS/DOS/mouse/IRQ vector
+  ranges only (a non-null 67h sent the game probing VCPI — narrowed).
+- 2026-07-12 — Boot screen printed via INT 21h AH=40 to stdout: CPU/DOS/VGA/
+  B-MEM/X-MEM (4 MB accepted)/mouse all detected; INT 33h services 0000/0024/
+  001B etc. answered as MS driver 8.20.
+- 2026-07-12 — CPU386 + DOS4GWHost boot the C runtime (~15k instructions,
+  earlier frontier); LE loader verified. (Details: git history.)
 
 ## Risks / unknowns
 
-- **Selector-base model (B2).** The flat CPU treats every segment as base 0.
-  That holds for the LE's own flat CS/DS/SS/ES, but DPMI DOS-memory blocks
-  (INT 31h AX=0100) return a *based* selector (base = para×16). Deciding how the
-  CPU resolves selector→base is the next design step (blockers.md B2).
-- **DPMI + VGA mapping.** File I/O for assets (.BOB/.DIG/.PAL) and VGA access at
-  linear 0xA0000 still ahead; the heap/DOS-memory layout must not collide with
-  the 0xA0000 VGA aperture.
-- The startup's extender/DPMI probes were answered to select the DOS/4GW-native
-  path; these are bootstrap (no oracle for the extender itself), the game code
-  is the oracle from `main()` onward.
+- **No file opens observed yet** — the title art and level render without the
+  game opening .DIG/.BOB files in our instrumented runs?? Most likely the spy
+  hooked the wrong register (fixed reg index) or opens happened outside the
+  probe window. Verify file I/O soon; assets must flow through AH=3D/3F.
+- **Timer IRQ0 not exercised**: pacing so far rides the deterministic retrace
+  toggle. The game installed no INT 8 vector in observed runs (checked
+  pm_vectors) — its 70 fps loop may be pure vsync. Confirm before demos.
+- **Sound Blaster absent**: game warns and continues. SB (port 0x210 probing
+  observed) comes later via dos_re's SoundBlaster model.
+- x87 doubles vs 80-bit: documented precision caveat, same as CPU8086.
+- The KBC "identify" flow uses polling + IRQ mix; scancode → game key mapping
+  unverified beyond SPACE (0x39/0xB9 worked).
 
 ## Next targets
 
-1. **Decide the selector-base model** (blockers.md B2) and implement DPMI
-   INT 31h AX=0100 (+ 0101/0006/0200-ish as they appear).
-2. Continue the boot: reach `INT 10h AX=0013` (set mode 13h) and the first VGA
-   write; render the first frame with `tools/render_frame.py` (or an adapter
-   rasterizer over the flat 0xA0000 region).
-3. Wire file I/O so the game loads its assets; find the frame boundary /
-   input-wait loop; record the first demo.
+1. Adapt [`scripts/play.py`](../../scripts/play.py) (GameFrontend) so the human
+   can see/play it live — needs a small PM-runtime presenter (render_mode_x +
+   DAC → surface, scancodes → press_scancode).
+2. Verify file I/O + case-resolution against assets/ (open/read/seek paths).
+3. Input-wait registry + first recorded demo (menus → gameplay), then the
+   frame verifier over the retrace boundary.
+4. Snapshot support for PMRuntime (FlatMemory + CPU386 + host state).

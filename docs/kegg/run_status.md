@@ -32,6 +32,18 @@ investigate), and start the demo corpus.
 
 ## Recent findings (newest first)
 
+- 2026-07-13 — **The sprite blitter's unclipped path is RECOVERED as clean
+  native source** — `kegg/recovered/rle_blit.py` (pure RLE decoder) +
+  `kegg/render_hooks.py` (the thin VM bridge that reproduces the routine's
+  full effect: planes, registers, sequencer, scratch globals, even the
+  push/pop stack scratch).  Proven **byte-exact against the interpreted ASM
+  oracle over 10,802 in-game calls, zero divergence** (`pm_verification`;
+  regression in `tests/test_rle_blit.py`).  `create_game_runtime` installs
+  it; the two clipped variants (0x22539 h-clip, 0x223b9 v-clip) fall back to
+  the interpreter until recovered next.  This is the first fully-recovered
+  gameplay routine (source, not just a lift).
+
+
 - 2026-07-13 — **Rendering island: core RLE primitive recovered as clean
   native code.** `kegg/recovered/rle_blit.py` (`decode_row`/`decode_plane_pass`,
   pure — no dos_re, layer-audit clean) reproduces the interpreted blitter's

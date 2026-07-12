@@ -18,12 +18,16 @@ def create_game_runtime(exe_path: str | Path, *, game_root: str | Path | None = 
     """Boot a fresh runtime.
 
     ``install_replacements=True`` (the default, for play) installs the
-    verified lifted hooks — a ~2.5x speedup on the render-heavy inner loop,
-    each guarding its own entry signature.  Pass ``False`` for the pure-ASM
-    oracle path (the differential verifier boots this way and installs the
-    hook under test itself)."""
+    RECOVERED native blitter (0x1222D1, unclipped path; clipped variants fall
+    back to the interpreter) — ~3.75x over the pure interpreter on the
+    gameplay snapshot.  The draw entry at 0x122288 is left un-hooked on
+    purpose: its tiny queue-write prologue interprets and falls straight into
+    the recovered blitter, so every draw takes the fast path (hooking it with
+    the older lifted version would run its own inline blit and bypass this).
+    Pass ``False`` for the pure-ASM oracle path (the differential verifier
+    boots this way and installs the hook under test itself)."""
     rt = create_pm_runtime(exe_path, game_root=game_root, command_tail=command_tail)
     if install_replacements:
-        from kegg.lifted32 import install_lifted32
-        install_lifted32(rt.cpu)
+        from kegg.render_hooks import install_render_hooks
+        install_render_hooks(rt.cpu)
     return rt

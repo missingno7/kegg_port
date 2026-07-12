@@ -24,7 +24,7 @@ def test_copy_skip_clip_semantics():
     plane = bytearray(64)
     # src: [nseg=3][copy 4: 'ABCD'][skip 2][copy 3: 'EFG']
     src = bytes([3, 4]) + b"ABCD" + bytes([0xFE]) + bytes([3]) + b"EFG"
-    esi, dst = decode_row(plane, src, 0, 0, 0, clip_w=1000)
+    esi, dst, _ = decode_row(plane, src, 0, 0, 0, clip_w=1000)
     assert bytes(plane[:9]) == b"ABCD\x00\x00EFG"   # 4 copied, 2 skipped, 3 copied
     assert dst == 9
     assert esi == len(src)
@@ -34,7 +34,7 @@ def test_right_clip_truncates_and_consumes_source():
     plane = bytearray(64)
     # clip at 3: a single 8-byte copy is truncated to 3 written, all 8 consumed
     src = bytes([1, 8]) + b"01234567"
-    esi, dst = decode_row(plane, src, 0, 0, 0, clip_w=3)
+    esi, dst, _ = decode_row(plane, src, 0, 0, 0, clip_w=3)
     assert bytes(plane[:8]) == b"012\x00\x00\x00\x00\x00"
     assert dst == 3
     assert esi == len(src)          # whole run's source consumed
@@ -44,7 +44,7 @@ def test_run_entirely_past_clip_is_dropped():
     plane = bytearray(64)
     # first copy fills to the clip, second run is entirely past it
     src = bytes([2, 4]) + b"WXYZ" + bytes([4]) + b"____"
-    esi, dst = decode_row(plane, src, 0, 0, 0, clip_w=4)
+    esi, dst, _ = decode_row(plane, src, 0, 0, 0, clip_w=4)
     assert bytes(plane[:8]) == b"WXYZ\x00\x00\x00\x00"
     assert esi == len(src)
 
@@ -90,3 +90,20 @@ def test_matches_interpreted_blitter_in_game():
         base = (edx - 0xA0000) & 0xFFFF
         decode_row(got[mask.bit_length() - 1], src, esi, base, base, clip)
     assert [bytes(p) for p in got] == want
+
+
+@pytest.mark.skipif(not SNAP.exists(), reason="gameplay snapshot not present")
+def test_recovered_hook_verifies_against_oracle():
+    """The recovered blitter hook (unclipped native + clipped fallback) must
+    reproduce the original routine byte-exact — every call diffed against the
+    interpreted ASM by the strict differential verifier."""
+    from dos_re.pm_snapshot import load_pm_snapshot
+    from dos_re.pm_verification import (install_pm_hook_verifier,
+                                        PMHookVerifyDivergence)
+    from kegg.render_hooks import install_render_hooks
+    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(SNAP))
+    install_render_hooks(rt.cpu)
+    v = install_pm_hook_verifier(rt)
+    v.config.samples = None                # verify EVERY call, no retirement
+    rt.cpu.run(4_000_000)
+    assert v.total_verified >= 100         # the run really exercised it

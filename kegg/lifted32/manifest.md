@@ -1,5 +1,12 @@
 # kegg/lifted32 — lift proof ledger
 
+> **Note:** the blitter (0x1222D1) is now RECOVERED as clean native
+> code in `kegg/recovered/rle_blit.py` (+ `kegg/render_hooks.py`), which
+> `create_game_runtime` installs instead.  These literal lifts remain as
+> the verified baseline / the source for the recovered refactor; the
+> queue-writer 0x122288 is left un-hooked so its prologue falls into the
+> recovered blitter (see kegg/runtime.py).
+
 Mechanically lifted functions (tools/pmlift-style pipeline over
 `lift/decode32|cfg32|emit32`), each proven in situ by the strict PM
 differential verifier (`pm_verification.PMHookVerifier`: full-machine diff

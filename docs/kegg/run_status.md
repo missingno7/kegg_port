@@ -80,17 +80,19 @@ investigate), and start the demo corpus.
 1. **Human playtest** of the live viewer (`python scripts/play.py`) — controls,
    menu navigation, whether gameplay starts and feels right; note speed (CPython
    ~1-2 M instr/s; pypy is the fast path).
-2. **emit32 + runtime32 + cfg-over-Inst32** (lifter plan item 4 — items 1–3
-   are done, see [`lifter_gap_analysis.md`](lifter_gap_analysis.md)); then
-   CLI PM modes (item 5) and a first liftgen census over KE's functions.
+2. **Start the real lifting loop** — the full 386 lifter pipeline is DONE and
+   proven on KE (census 98% liftable; 13 functions ORACLE_PASSING in situ,
+   zero divergences — [`lifter_gap_analysis.md`](lifter_gap_analysis.md)).
+   Next: snapshot at the menu/gameplay, `pmlift --verify` from there to reach
+   the gameplay functions, promote passing lifts into `kegg/lifted32/` with
+   the manifest ledger.
 3. Input-wait registry + first recorded demo (menus → gameplay), then the
-   frame verifier over the retrace boundary (the PM hook verifier landed —
-   the frame verifier builds on the same clone/diff machinery).
+   frame verifier over the retrace boundary (same clone/diff machinery).
 4. Sound Blaster detection (game probes DSP at port 0x210/0x21C/0x21E) via
    dos_re's SoundBlaster model, so the game boots with sound enabled.
 
-Done since: live play runner (viewer, KBC keys, mouse, F10/F12,
---snapshot resume); PM snapshots + resume-determinism proof;
-**CPU386 hook surface + strict differential verifier (game-free proof
-suite)**; **decode32 with a 400k-instruction interpreter cross-check on
-real boot execution (zero disagreements)**; file I/O verified.
+Done since: live play runner (viewer, KBC keys, mouse, F10/F12, --snapshot
+resume); PM snapshots + resume-determinism proof; CPU386 hook surface +
+strict differential verifier; decode32 (400k-instruction cross-check);
+**the complete 32-bit lifter (cfg32/emit32/runtime32 + pmlift CLI) with
+first real lifts verified against the oracle in the running game**.

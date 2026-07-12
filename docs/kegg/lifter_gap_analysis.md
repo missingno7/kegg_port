@@ -41,8 +41,24 @@ usable, and KE is an unusually good lift target once it lands.**
    by 15 unit shapes + a 400k-instruction length cross-check against CPU386
    on real KE boot execution (zero disagreements). cfg parametrization still
    pending (folds into item 4).
-4. **`emit32.py`** + `runtime32` delegation primitives + cfg over Inst32.
-5. **CLI PM modes** for liftgen/liftverify.
+4. ~~**`emit32.py`** + `runtime32` + cfg over Inst32~~ **DONE 2026-07-12** —
+   `lift/emit32.py` (faithful/total/refactorable, interp_one32 fallback for
+   non-native lines incl. x87), `lift/runtime32.py`, `lift/cfg32.py`.
+   Proven game-free end-to-end (scan→emit→exec→strict differential verify).
+5. ~~**CLI PM modes**~~ **DONE 2026-07-12** — `tools/pmlift.py` (census +
+   emit + in-situ verify; `--auto-entries` static call-target sweep;
+   verifier samples cap retires proven hooks).
+
+## First results on KE (2026-07-12)
+
+- Census of the 300 most-called functions: **295 liftable (98%)** — only 3
+  indirect-jump (switch tables) and 3 undecodable refusals. The prediction
+  held: Watcom flat code lifts far better than the 16-bit ports.
+- In-situ verify over an 8M-step boot run: **13 lifted functions
+  ORACLE_PASSING, zero DIVERGED** — including the keyboard-driver command
+  sender (link 0x21420) and the register-block INT dispatcher (link
+  0x245AD). The rest NOT_REACHED (later-phase functions; re-run from a
+  gameplay snapshot to reach them).
 
 Sequencing note: porting_new_game.md starts the lifting loop at step 7, after
 frame verifier (4), input waits (5), first demo (6). Items 1–2 are shared

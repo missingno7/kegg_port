@@ -31,14 +31,17 @@ usable, and KE is an unusually good lift target once it lands.**
 
 ## Dependency-ordered build plan
 
-1. **CPU386 hook surface** — `replacement_hooks`/`hook_names` dispatch in
-   `step()` (mirror CPU8086's). Small; unblocks everything oracle-shaped.
-2. **PM differential verifier** — state clone + strict continuation diff for
-   PMRuntime (generalize `verification.py` or a `pm_verification.py`).
-   Shared prerequisite with the frame verifier (bring-up step 4).
-3. **`decode32.py`** + cfg parametrization, with the interpreter length
-   cross-check wired to CPU386.
-4. **`emit32.py`** + `runtime32` delegation primitives.
+1. ~~**CPU386 hook surface**~~ **DONE 2026-07-12** — linear-EIP-keyed
+   `replacement_hooks` dispatch in `step()`, same contract as CPU8086.
+2. ~~**PM differential verifier**~~ **DONE 2026-07-12** —
+   `pm_verification.PMHookVerifier` (strict auto-continuation, full-machine
+   diff) over `pm_snapshot.clone_pm_runtime`; proven game-free (correct hook
+   passes; wrong result / stray write / stale flags each raise).
+3. ~~**`decode32.py`**~~ **DONE 2026-07-12** — `lift/decode32.py`; validated
+   by 15 unit shapes + a 400k-instruction length cross-check against CPU386
+   on real KE boot execution (zero disagreements). cfg parametrization still
+   pending (folds into item 4).
+4. **`emit32.py`** + `runtime32` delegation primitives + cfg over Inst32.
 5. **CLI PM modes** for liftgen/liftverify.
 
 Sequencing note: porting_new_game.md starts the lifting loop at step 7, after

@@ -80,17 +80,17 @@ investigate), and start the demo corpus.
 1. **Human playtest** of the live viewer (`python scripts/play.py`) — controls,
    menu navigation, whether gameplay starts and feels right; note speed (CPython
    ~1-2 M instr/s; pypy is the fast path).
-2. **CPU386 hook surface + PM differential verifier** — the shared
-   prerequisite of the frame verifier (bring-up step 4) AND the automatic
-   lifter (see [`lifter_gap_analysis.md`](lifter_gap_analysis.md): the lifter
-   architecture transfers; decode32/emit32/hook-verify are the gaps).
+2. **emit32 + runtime32 + cfg-over-Inst32** (lifter plan item 4 — items 1–3
+   are done, see [`lifter_gap_analysis.md`](lifter_gap_analysis.md)); then
+   CLI PM modes (item 5) and a first liftgen census over KE's functions.
 3. Input-wait registry + first recorded demo (menus → gameplay), then the
-   frame verifier over the retrace boundary.
-4. decode32 + emit32 for the lifter (dependency-ordered plan in the analysis).
-5. Sound Blaster detection (game probes DSP at port 0x210/0x21C/0x21E) via
+   frame verifier over the retrace boundary (the PM hook verifier landed —
+   the frame verifier builds on the same clone/diff machinery).
+4. Sound Blaster detection (game probes DSP at port 0x210/0x21C/0x21E) via
    dos_re's SoundBlaster model, so the game boots with sound enabled.
 
-Done since: live play runner (`scripts/play.py`, PM viewer: wall-clock vsync
-pacing, KBC scancodes incl. E0 arrows, INT 33h mouse, F10 screenshot, F12
-snapshot, --snapshot resume, --headless smoke); PM snapshots with a
-resume-determinism proof test; file I/O verified; lifter gap analysis.
+Done since: live play runner (viewer, KBC keys, mouse, F10/F12,
+--snapshot resume); PM snapshots + resume-determinism proof;
+**CPU386 hook surface + strict differential verifier (game-free proof
+suite)**; **decode32 with a 400k-instruction interpreter cross-check on
+real boot execution (zero disagreements)**; file I/O verified.

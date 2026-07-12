@@ -32,6 +32,26 @@ investigate), and start the demo corpus.
 
 ## Recent findings (newest first)
 
+- 2026-07-13 — **The rendering island is located, lifted and oracle-proven.**
+  From the human's in-game snapshot (snap_126359171): virtually all gameplay
+  time is one routine — the Mode X RLE sprite blitter at 0x1222D1 (runtime;
+  dispatched via draw-pointers at 0x1483FE/0x148402, hot loop 0x122362).
+  Both it and the deferred-draw queue writer (0x122288) lift mechanically and
+  pass the strict differential verifier in-game (ORACLE_PASSING ×8 each) —
+  `kegg/lifted32/` + manifest.  Literal lifts are speed-neutral (measured);
+  the speedup slice is the bulk `recovered/` blitter next.
+- 2026-07-13 — **Interpreter speed paths** (equivalence-tested): bulk forward
+  REP MOVS/STOS as slice ops incl. planar map-mask scatter, plane->RAM
+  gather, and write-mode-1 plane-to-plane block copy (8 randomized
+  equivalence cases vs the per-unit loop); IRQ-source polling decimated to
+  every 16 instructions (~10% of the whole interpreter, measured).  In-game:
+  CPython 0.65 M instr/s, pypy 4.6 M instr/s (original 386 ≈ 10 MIPS — the
+  human's "runs slow" is real; the recovered blitter is the lever).
+- 2026-07-13 — SB audio end-to-end + AH=35 default-vector fix + mouse
+  virtual-range mapping (see git log for the three-layer audio onion).
+
+
+
 - 2026-07-12 — **GAMEPLAY RENDERS.** After SPACE at the title (scancode via the
   new 8042 KBC + IRQ1 delivery into the game's INT 9 handler), the game
   page-flips (display_start 0x4000) into level-1 attract/play. Proven by:
@@ -75,7 +95,20 @@ investigate), and start the demo corpus.
 - The KBC "identify" flow uses polling + IRQ mix; scancode → game key mapping
   unverified beyond SPACE (0x39/0xB9 worked).
 
-## Next targets
+## Next targets (updated 2026-07-13)
+
+1. **The bulk recovered blitter** — refactor lifted 0x1222D1 into
+   `kegg/recovered/` bulk plane-slice operations behind a thin hook; prove
+   with the differential verifier + a frame render compare; measure the
+   speedup from the snapshot.  This is the "lift the rendering island" plan's
+   speed payoff.
+2. **PM input-demo engine** — record/replay for PMRuntime (scancode + mouse +
+   console-key events keyed to a deterministic clock).  The human noticed
+   F11/record is missing: correct, it does not exist yet on the PM path.
+3. More lifting from the gameplay snapshot (pmlift --snapshot now reaches
+   gameplay functions).
+
+## Older targets
 
 1. **Human playtest** of the live viewer (`python scripts/play.py`) — controls,
    menu navigation, whether gameplay starts and feels right; note speed (CPython

@@ -30,7 +30,7 @@ def test_lengths_match_interpreter():
     from kegg.runtime import create_game_runtime
     from dos_re.lift.decode32 import decode32
 
-    rt = create_game_runtime(EXE)
+    rt = create_game_runtime(EXE, install_replacements=False)  # test the pure interpreter
     cpu = rt.cpu
     read = cpu.mem.data.__getitem__
 

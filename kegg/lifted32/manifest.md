@@ -18,12 +18,22 @@ Dispatch: both reached through draw-function pointers at 0x1483FE/0x148402
 (no direct callers — the census's `--auto-entries` sweep can't see them; found
 via data-pointer scan).
 
-## Why these are here
+## Why these are here (and the measured win)
 
 The profiler (from the in-game snapshot) puts virtually all gameplay time in
-the 0x122362 run loop.  The literal lifts are speed-NEUTRAL (measured: 4.16 →
-4.22 M instr/s under pypy) — per-instruction Python either way.  They are the
-**correctness baseline** for the next slice: a bulk `recovered/` blitter
-(slice writes into `VGASequencer.planes`) installed as the hook, verified by
-the same differential oracle, which removes ~all of those interpreted
-instructions from the frame cost.
+the 0x122362 run loop.  Installing these two lifts is a **2.5x speedup**
+measured on that snapshot (pypy, 20 M in-game instructions retired: 4.18 ->
+10.44 M instr/s, blitter called ~9000x) — the lifted Python skips the
+interpreter's fetch/decode/dispatch, which is ~60% of per-instruction cost.
+`install_replacements=True` (kegg.runtime, the default for play) installs
+them; the differential-verify path boots with `install_replacements=False`.
+
+The NEXT lever is a bulk `recovered/` blitter that decodes each RLE run as
+native slice writes into `VGASequencer.planes` (collapsing each ~2000-
+instruction call to tens of Python ops), verified by the same oracle.  Note
+it is a large slice, not a quick refactor: this routine is a self-contained
+state machine (0 calls / 0 INTs) with TWO RLE paths (unclipped 0x1222F8+,
+edge-clipped 0x1223B9+), programs the VGA sequencer via OUT mid-decode, and
+mutates scratch globals (0x148376/80/88, 0x14836C, 0x14838C, 0x1483A4/A5)
+the oracle diffs — so the recovered version must reproduce every side effect,
+not just the pixels.

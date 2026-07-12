@@ -4,7 +4,7 @@ Function 0x1222D1  (256 instructions, 75 basic blocks)
 
 Refactor freely: the oracle tests are the contract, not this text. Lines
 marked "(interpreter fallback)" are instructions the emitter has no native
-form for yet — they are exact, but they are also the to-do list.
+form for yet -- they are exact, but they are also the to-do list.
 """
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ def lift_1222d1(cpu):
     """Lifted replacement for flat 0x1222D1."""
     check_signature(cpu, ENTRY, SIGNATURE, 'lift_1222d1')
     r, mem, sb = cpu.r, cpu.mem, cpu.sbase
+    cpu.instruction_count -= 1  # step() counts the hook as 1
     bb = 0
     for _guard in range(MAX_ITERATIONS):
         if bb == 0:
@@ -53,6 +54,7 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 32)
             # 0x1222F2  0f85c1000000   jcc
+            cpu.instruction_count += 9
             bb = 23 if cpu._cond(0x5) else 1
         elif bb == 1:
             # 0x1222F8  833d8883140000 grp1
@@ -62,11 +64,13 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 32)
             # 0x1222FF  0f85b3010000   jcc
+            cpu.instruction_count += 2
             bb = 49 if cpu._cond(0x5) else 2
         elif bb == 2:
             # 0x122305  66c705768314000a00 mov
             _o = (sb["ds"] + 0x148376) & 0xFFFFFFFF
             mem.w16(_o, 0xA)
+            cpu.instruction_count += 1
             bb = 3
         elif bb == 3:
             # 0x12230E  53             push
@@ -126,6 +130,7 @@ def lift_1222d1(cpu):
             _o = (sb["ds"] + 0x148378) & 0xFFFFFFFF
             r[1] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x12233E  67e310         jecxz
+            cpu.instruction_count += 15
             bb = 9 if ((r[1] & 0xFFFF) == 0) else 4
         elif bb == 4:
             # 0x122341  8a16           mov
@@ -138,6 +143,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 5
         elif bb == 5:
             # 0x122344  ac             lodsb
@@ -150,6 +156,7 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(0, 1, _r & 0xFF)
             # 0x122347  7c02           jcc
+            cpu.instruction_count += 3
             bb = 7 if cpu._cond(0xC) else 6
         elif bb == 6:
             # 0x122349  03f0           add
@@ -158,6 +165,7 @@ def lift_1222d1(cpu):
             _r = _a + _b
             cpu._flags_add(_a, _b, _r, 32)
             r[6] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 7
         elif bb == 7:
             # 0x12234B  feca           grp4
@@ -168,9 +176,11 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(2, 1, _r)
             # 0x12234D  75f5           jcc
+            cpu.instruction_count += 2
             bb = 5 if cpu._cond(0x5) else 8
         elif bb == 8:
             # 0x12234F  e2f0           loop
+            cpu.instruction_count += 1
             r[1] = (r[1] - 1) & 0xFFFFFFFF
             bb = 4 if (r[1] != 0) else 9
         elif bb == 9:
@@ -188,6 +198,7 @@ def lift_1222d1(cpu):
             # 0x12235C  89156c831400   mov
             _o = (sb["ds"] + 0x14836C) & 0xFFFFFFFF
             mem.w32(_o, r[2])
+            cpu.instruction_count += 4
             bb = 10
         elif bb == 10:
             # 0x122362  8a3e           mov
@@ -202,6 +213,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 11
         elif bb == 11:
             # 0x122367  8a0e           mov
@@ -221,11 +233,13 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(1, 1, _r & 0xFF)
             # 0x12236C  7c1d           jcc
+            cpu.instruction_count += 4
             bb = 19 if cpu._cond(0xC) else 12
         elif bb == 12:
             # 0x12236E  f7c701000000   grp3
             interp_one32(cpu, 0x12236E)  # (interpreter fallback)
             # 0x122374  7402           jcc
+            cpu.instruction_count += 1
             bb = 14 if cpu._cond(0x4) else 13
         elif bb == 13:
             # 0x122376  a4             movsb
@@ -238,6 +252,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[1] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 14
         elif bb == 14:
             # 0x122378  d1e9           grp2
@@ -246,11 +261,13 @@ def lift_1222d1(cpu):
             cpu._opsize = 2; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA5, 0xF3)
             # 0x12237D  7301           jcc
+            cpu.instruction_count += 3
             bb = 16 if cpu._cond(0x3) else 15
         elif bb == 15:
             # 0x12237F  a4             movsb
             cpu._opsize = 4; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA4, 0)
+            cpu.instruction_count += 1
             bb = 16
         elif bb == 16:
             # 0x122380  fec7           grp4
@@ -261,6 +278,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x122382  75e3           jcc
+            cpu.instruction_count += 2
             bb = 11 if cpu._cond(0x5) else 17
         elif bb == 17:
             # 0x122384  03fa           add
@@ -277,9 +295,11 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[5] = (_r) & 0xFFFFFFFF
             # 0x122387  75d9           jcc
+            cpu.instruction_count += 3
             bb = 10 if cpu._cond(0x5) else 18
         elif bb == 18:
             # 0x122389  eb0d           jmp
+            cpu.instruction_count += 1
             bb = 21
         elif bb == 19:
             # 0x12238B  f6d9           grp3
@@ -298,6 +318,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x122391  75d4           jcc
+            cpu.instruction_count += 3
             bb = 11 if cpu._cond(0x5) else 20
         elif bb == 20:
             # 0x122393  03fa           add
@@ -314,6 +335,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[5] = (_r) & 0xFFFFFFFF
             # 0x122396  75ca           jcc
+            cpu.instruction_count += 3
             bb = 10 if cpu._cond(0x5) else 21
         elif bb == 21:
             # 0x122398  5f             pop
@@ -351,9 +373,11 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 8)
             # 0x1223B2  0f8556ffffff   jcc
+            cpu.instruction_count += 10
             bb = 3 if cpu._cond(0x5) else 22
         elif bb == 22:
             # 0x1223B8  c3             ret
+            cpu.instruction_count += 1
             cpu.eip = cpu.pop(4)
             return
         elif bb == 23:
@@ -380,6 +404,7 @@ def lift_1222d1(cpu):
             # 0x1223D8  89156c831400   mov
             _o = (sb["ds"] + 0x14836C) & 0xFFFFFFFF
             mem.w32(_o, r[2])
+            cpu.instruction_count += 7
             bb = 24
         elif bb == 24:
             # 0x1223DE  53             push
@@ -434,6 +459,7 @@ def lift_1222d1(cpu):
             _o = (sb["ds"] + 0x148378) & 0xFFFFFFFF
             r[1] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x12240B  67e310         jecxz
+            cpu.instruction_count += 15
             bb = 30 if ((r[1] & 0xFFFF) == 0) else 25
         elif bb == 25:
             # 0x12240E  8a16           mov
@@ -446,6 +472,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 26
         elif bb == 26:
             # 0x122411  ac             lodsb
@@ -458,6 +485,7 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(0, 1, _r & 0xFF)
             # 0x122414  7c02           jcc
+            cpu.instruction_count += 3
             bb = 28 if cpu._cond(0xC) else 27
         elif bb == 27:
             # 0x122416  03f0           add
@@ -466,6 +494,7 @@ def lift_1222d1(cpu):
             _r = _a + _b
             cpu._flags_add(_a, _b, _r, 32)
             r[6] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 28
         elif bb == 28:
             # 0x122418  feca           grp4
@@ -476,14 +505,17 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(2, 1, _r)
             # 0x12241A  75f5           jcc
+            cpu.instruction_count += 2
             bb = 26 if cpu._cond(0x5) else 29
         elif bb == 29:
             # 0x12241C  e2f0           loop
+            cpu.instruction_count += 1
             r[1] = (r[1] - 1) & 0xFFFFFFFF
             bb = 25 if (r[1] != 0) else 30
         elif bb == 30:
             # 0x12241E  8bd7           mov
             r[2] = (r[7]) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 31
         elif bb == 31:
             # 0x122420  8bfa           mov
@@ -509,6 +541,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 5
             bb = 32
         elif bb == 32:
             # 0x12242F  8a0e           mov
@@ -528,6 +561,7 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(1, 1, _r & 0xFF)
             # 0x122434  7c32           jcc
+            cpu.instruction_count += 4
             bb = 43 if cpu._cond(0xC) else 33
         elif bb == 33:
             # 0x122436  8bc7           mov
@@ -539,6 +573,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_a, _b, _r, 32)
             r[0] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x12243A  7d12           jcc
+            cpu.instruction_count += 3
             bb = 37 if cpu._cond(0xD) else 34
         elif bb == 34:
             # 0x12243C  03c1           add
@@ -548,6 +583,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_a, _b, _r, 32)
             r[0] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x12243E  7f06           jcc
+            cpu.instruction_count += 2
             bb = 36 if cpu._cond(0xF) else 35
         elif bb == 35:
             # 0x122440  03f1           add
@@ -563,6 +599,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_a, _b, _r, 32)
             r[7] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x122444  eb1a           jmp
+            cpu.instruction_count += 3
             bb = 41
         elif bb == 36:
             # 0x122446  2bc8           sub
@@ -585,11 +622,13 @@ def lift_1222d1(cpu):
             r[7] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x12244C  8bc8           mov
             r[1] = (r[0]) & 0xFFFFFFFF
+            cpu.instruction_count += 4
             bb = 37
         elif bb == 37:
             # 0x12244E  f7c701000000   grp3
             interp_one32(cpu, 0x12244E)  # (interpreter fallback)
             # 0x122454  7402           jcc
+            cpu.instruction_count += 1
             bb = 39 if cpu._cond(0x4) else 38
         elif bb == 38:
             # 0x122456  a4             movsb
@@ -602,6 +641,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[1] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 39
         elif bb == 39:
             # 0x122458  d1e9           grp2
@@ -610,11 +650,13 @@ def lift_1222d1(cpu):
             cpu._opsize = 2; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA5, 0xF3)
             # 0x12245D  7301           jcc
+            cpu.instruction_count += 3
             bb = 41 if cpu._cond(0x3) else 40
         elif bb == 40:
             # 0x12245F  a4             movsb
             cpu._opsize = 4; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA4, 0)
+            cpu.instruction_count += 1
             bb = 41
         elif bb == 41:
             # 0x122460  2bc0           sub
@@ -631,9 +673,11 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x122464  75c9           jcc
+            cpu.instruction_count += 3
             bb = 32 if cpu._cond(0x5) else 42
         elif bb == 42:
             # 0x122466  eb08           jmp
+            cpu.instruction_count += 1
             bb = 44
         elif bb == 43:
             # 0x122468  f6d9           grp3
@@ -652,6 +696,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x12246E  75bf           jcc
+            cpu.instruction_count += 3
             bb = 32 if cpu._cond(0x5) else 44
         elif bb == 44:
             # 0x122470  03156c831400   add
@@ -669,6 +714,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[5] = (_r) & 0xFFFFFFFF
             # 0x122477  75a7           jcc
+            cpu.instruction_count += 3
             bb = 31 if cpu._cond(0x5) else 45
         elif bb == 45:
             # 0x122479  ff058c831400   inc
@@ -686,6 +732,7 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 32)
             # 0x122486  7510           jcc
+            cpu.instruction_count += 3
             bb = 47 if cpu._cond(0x5) else 46
         elif bb == 46:
             # 0x122488  c7058c83140000000000 mov
@@ -699,6 +746,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             mem.w32(_o, _r)
+            cpu.instruction_count += 2
             bb = 47
         elif bb == 47:
             # 0x122498  5f             pop
@@ -729,9 +777,11 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 8)
             # 0x1224B1  0f8527ffffff   jcc
+            cpu.instruction_count += 9
             bb = 24 if cpu._cond(0x5) else 48
         elif bb == 48:
             # 0x1224B7  c3             ret
+            cpu.instruction_count += 1
             cpu.eip = cpu.pop(4)
             return
         elif bb == 49:
@@ -752,6 +802,7 @@ def lift_1222d1(cpu):
             # 0x1224D6  89156c831400   mov
             _o = (sb["ds"] + 0x14836C) & 0xFFFFFFFF
             mem.w32(_o, r[2])
+            cpu.instruction_count += 6
             bb = 50
         elif bb == 50:
             # 0x1224DC  53             push
@@ -811,6 +862,7 @@ def lift_1222d1(cpu):
             _o = (sb["ds"] + 0x148378) & 0xFFFFFFFF
             r[1] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x12250C  67e310         jecxz
+            cpu.instruction_count += 15
             bb = 56 if ((r[1] & 0xFFFF) == 0) else 51
         elif bb == 51:
             # 0x12250F  8a16           mov
@@ -823,6 +875,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 52
         elif bb == 52:
             # 0x122512  ac             lodsb
@@ -835,6 +888,7 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(0, 1, _r & 0xFF)
             # 0x122515  7c02           jcc
+            cpu.instruction_count += 3
             bb = 54 if cpu._cond(0xC) else 53
         elif bb == 53:
             # 0x122517  03f0           add
@@ -843,6 +897,7 @@ def lift_1222d1(cpu):
             _r = _a + _b
             cpu._flags_add(_a, _b, _r, 32)
             r[6] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 54
         elif bb == 54:
             # 0x122519  feca           grp4
@@ -853,9 +908,11 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(2, 1, _r)
             # 0x12251B  75f5           jcc
+            cpu.instruction_count += 2
             bb = 52 if cpu._cond(0x5) else 55
         elif bb == 55:
             # 0x12251D  e2f0           loop
+            cpu.instruction_count += 1
             r[1] = (r[1] - 1) & 0xFFFFFFFF
             bb = 51 if (r[1] != 0) else 56
         elif bb == 56:
@@ -883,6 +940,7 @@ def lift_1222d1(cpu):
             mem.w32(_o, _r)
             # 0x122537  8bd7           mov
             r[2] = (r[7]) & 0xFFFFFFFF
+            cpu.instruction_count += 6
             bb = 57
         elif bb == 57:
             # 0x122539  8bfa           mov
@@ -899,6 +957,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[6] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 3
             bb = 58
         elif bb == 58:
             # 0x122540  8a0e           mov
@@ -918,6 +977,7 @@ def lift_1222d1(cpu):
             cpu._flags_logic(_r, 8)
             cpu.set_reg(1, 1, _r & 0xFF)
             # 0x122545  7c36           jcc
+            cpu.instruction_count += 4
             bb = 71 if cpu._cond(0xC) else 59
         elif bb == 59:
             # 0x122547  8bc7           mov
@@ -936,6 +996,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_a, _b, _r, 32)
             r[0] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x122551  7d08           jcc
+            cpu.instruction_count += 4
             bb = 62 if cpu._cond(0xD) else 60
         elif bb == 60:
             # 0x122553  03c1           add
@@ -945,6 +1006,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_a, _b, _r, 32)
             r[0] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x122555  7c08           jcc
+            cpu.instruction_count += 2
             bb = 63 if cpu._cond(0xC) else 61
         elif bb == 61:
             # 0x122557  2bc8           sub
@@ -954,6 +1016,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_a, _b, _r, 32)
             r[1] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x122559  eb06           jmp
+            cpu.instruction_count += 2
             bb = 64
         elif bb == 62:
             # 0x12255B  03f1           add
@@ -963,6 +1026,7 @@ def lift_1222d1(cpu):
             cpu._flags_add(_a, _b, _r, 32)
             r[6] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x12255D  eb16           jmp
+            cpu.instruction_count += 2
             bb = 69
         elif bb == 63:
             # 0x12255F  2bc0           sub
@@ -971,11 +1035,13 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 32)
             r[0] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 64
         elif bb == 64:
             # 0x122561  f7c701000000   grp3
             interp_one32(cpu, 0x122561)  # (interpreter fallback)
             # 0x122567  7402           jcc
+            cpu.instruction_count += 1
             bb = 66 if cpu._cond(0x4) else 65
         elif bb == 65:
             # 0x122569  a4             movsb
@@ -988,6 +1054,7 @@ def lift_1222d1(cpu):
             cpu._flags_sub(_old, 1, _r, 32)
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[1] = (_r) & 0xFFFFFFFF
+            cpu.instruction_count += 2
             bb = 66
         elif bb == 66:
             # 0x12256B  d1e9           grp2
@@ -996,11 +1063,13 @@ def lift_1222d1(cpu):
             cpu._opsize = 2; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA5, 0xF3)
             # 0x122570  7301           jcc
+            cpu.instruction_count += 3
             bb = 68 if cpu._cond(0x3) else 67
         elif bb == 67:
             # 0x122572  a4             movsb
             cpu._opsize = 4; cpu._adsize = 4; cpu._segovr = None
             cpu._string(0xA4, 0)
+            cpu.instruction_count += 1
             bb = 68
         elif bb == 68:
             # 0x122573  03f0           add
@@ -1009,6 +1078,7 @@ def lift_1222d1(cpu):
             _r = _a + _b
             cpu._flags_add(_a, _b, _r, 32)
             r[6] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
+            cpu.instruction_count += 1
             bb = 69
         elif bb == 69:
             # 0x122575  2bc0           sub
@@ -1025,9 +1095,11 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x122579  75c5           jcc
+            cpu.instruction_count += 3
             bb = 58 if cpu._cond(0x5) else 70
         elif bb == 70:
             # 0x12257B  eb08           jmp
+            cpu.instruction_count += 1
             bb = 72
         elif bb == 71:
             # 0x12257D  f6d9           grp3
@@ -1046,6 +1118,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             cpu.set_reg(7, 1, _r)
             # 0x122583  75bb           jcc
+            cpu.instruction_count += 3
             bb = 58 if cpu._cond(0x5) else 72
         elif bb == 72:
             # 0x122585  03156c831400   add
@@ -1063,6 +1136,7 @@ def lift_1222d1(cpu):
             cpu.eflags = (cpu.eflags & ~CF) | _cf
             r[5] = (_r) & 0xFFFFFFFF
             # 0x12258C  75ab           jcc
+            cpu.instruction_count += 3
             bb = 57 if cpu._cond(0x5) else 73
         elif bb == 73:
             # 0x12258E  5f             pop
@@ -1093,9 +1167,11 @@ def lift_1222d1(cpu):
             _r = _a - _b
             cpu._flags_sub(_a, _b, _r, 8)
             # 0x1225A7  0f852fffffff   jcc
+            cpu.instruction_count += 9
             bb = 50 if cpu._cond(0x5) else 74
         elif bb == 74:
             # 0x1225AD  c3             ret
+            cpu.instruction_count += 1
             cpu.eip = cpu.pop(4)
             return
     raise LiftRuntimeError(

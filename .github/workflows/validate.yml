@@ -1,0 +1,31 @@
+# Validate the template: the docs an agent boots from, the skeleton it copies, and the pinned
+# framework it builds on. No game assets exist in CI — everything here is game-free by construction.
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Doc links resolve (the boot sequence must not strand an agent)
+        run: python dos_re/tools/check_doc_links.py . --exclude dos_re
+      - name: Adapter skeleton compiles
+        run: python -m compileall -q examples/adapter_skeleton
+      - name: Adapter skeleton passes the pure-layer audit (as shipped)
+        run: python dos_re/tools/audit_layers.py examples/adapter_skeleton/recovered
+      - name: Framework suite resolves through this repo's pythonpath wiring
+        run: |
+          pip install pytest pytest-xdist
+          python -m pytest dos_re/tests -q -n auto
+      - name: Full-lifecycle integration (tiny_frame_game against the pinned submodule)
+        run: python dos_re/examples/tiny_frame_game/walkthrough.py

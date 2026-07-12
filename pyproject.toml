@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# dos_re is a submodule at ./dos_re/ (a full repo root, not the package
+# itself — the actual dos_re/ package is one level deeper, at dos_re/dos_re/).
+# This makes `import dos_re` / `from dos_re.x import y` resolve the same way
+# for adapter code and tests here as it does inside the dos_re repo itself
+# (whose own pyproject.toml sets pythonpath = ["."] for the same reason).
+pythonpath = ["dos_re"]

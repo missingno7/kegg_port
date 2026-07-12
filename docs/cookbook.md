@@ -6,14 +6,66 @@ But every one of them **solved a problem your game will likely also have**,
 and the worked example is sitting on disk. This is the problem-indexed map.
 
 The worked examples live in the sibling repositories: `pre2_port` (P2 —
-github.com/missingno7/pre2_port) and `overkill_port` (OK), typically checked
-out next to this repo. Paths below are relative to those repos. If neither is
+github.com/missingno7/pre2_port), `overkill_port` (OK) and `kegg_port` (KE —
+the first DOS/4GW title), typically checked out next to this repo. Paths below are relative to those repos. If neither is
 available on your machine, the entries below still carry the essential shape
 of each technique — enough to re-derive it against your own oracle; treat the
 missing example as lost convenience, not lost method.
 When you re-implement one of these for a new game, read the original first —
 each encodes debugging that took days — and if your version comes out generic,
 promote it (see `roadmap.md`, "parameterize-and-promote").
+
+## Protected mode (DOS/4GW / Watcom LE titles)
+
+**The EXE is MZ but tiny, mentions DOS/4G(W), and `create_runtime` boots
+garbage.** → It's an MZ *stub* + `LE` (Linear Executable) at `e_lfanew` — a
+32-bit flat protected-mode program. The extender is *bootstrap, not
+gameplay*: don't emulate DOS/4GW, replace it. `dos_re.le.load_le` maps the
+image, `dos_re.runtime.create_pm_runtime` boots it on the flat 386 core
+(`cpu386.py`) with the DOS/4GW host (`dos4gw.py`). Day-0 tools:
+`tools/le_info.py` (what am I looking at), `tools/pm_boot.py` (run to the
+fail-loud frontier), `tools/pm_view.py` (zero-setup live window). The whole
+bring-up loop is: run pm_boot, read the named unimplemented opcode/service,
+implement the observed behaviour, re-run. KE went from LE parsing to
+rendered gameplay in one such session; its `docs/kegg/run_status.md` is the
+worked log.
+
+**The Watcom heap corrupts itself minutes in; heap pointers land in
+A0000h.** → LE object bases are *link* bases. Real DOS/4G relocates the
+image above 1 MB (that's what the internal fixups are for) and keeps the
+low megabyte 1:1 (VGA at A0000h). Load at the link base and the C runtime's
+sbrk grows the heap straight into the VGA aperture. `create_pm_runtime`
+rebases +0x100000; analysis tools keep link addresses (`le_info --rebase`
+maps between them). Found the hard way: KE's heap free-list head at a
+planar-VGA address, shredded by plane writes.
+
+**The game's own hardware-detection rejects a device you emulate (mouse,
+SB...).** → It may not call the driver API at all: KE detects the mouse by
+reading the real-mode IVT entry (flat linear 0xCC) through DOS/4GW's 1:1
+low map. `dos_re.dos4gw.seed_low_memory` populates a power-on BIOS
+environment — but seed IVT vectors *narrowly* (BIOS/DOS/mouse/IRQ ranges):
+seeding everything non-null made KE probe VCPI (INT 67h looked installed).
+The Watcom runtime also probes the extender with INT 21h AX=FF00h/AH=EDh
+and INT 2Fh AX=1687h — each answer selects a startup path; KE's
+`docs/kegg/symbol_ledger.md` maps the probe flow.
+
+**The rendered frame shows 4 squeezed copies of the screen side by side.**
+→ The game unchained VGA into Mode X (sequencer memory-mode chain-4 off;
+how 90s action titles hit 70 fps). Linear A0000h bytes are now
+plane-interleaved. `dos_re.dos4gw.VGASequencer` models the planes /
+map-mask / latched write-mode-1 copies, and `render_pm_frame` composes
+pixels from the planes at the CRTC display start. If a frame looks
+right-but-frozen, check `display_start` — the game page-flips.
+
+**You want the lifter on a 32-bit title.** → The whole pipeline has a PM
+counterpart: `lift/decode32|cfg32|emit32|runtime32`,
+`pm_verification.PMHookVerifier` (strict auto-continuation, full-machine
+diff, samples cap), CLI `tools/pmlift.py` (census + emit + in-situ verify).
+Flat Watcom C code lifts far better than 16-bit spaghetti — KE's census:
+98% of the 300 most-called functions mechanically liftable, first 13 lifts
+ORACLE_PASSING with zero divergences. `kegg_port/docs/kegg/
+lifter_gap_analysis.md` is the porting story if dos_re ever needs another
+ISA variant.
 
 ## Timing and speed
 
@@ -147,22 +199,31 @@ instruction count. Worked examples of the full pipeline (pre-framework, still
 the richest reference): `pre2/native/game_tick_demo.py`,
 `pre2_port/scripts/verify_finish_demo.py`, `scripts/verify_native_tick_demo.py`.
 
-**Proving the native FRONT END equals the VM — the screens with no game tick.**
-→ *Front-end timeline harness* — **a framework engine**: `dos_re/frontend_timeline.py`
-(`capture` + `collapse` + `diff_sequence` + `diff_pixels`; usage skeleton in
-dos_re's `docs/agent_toolbox.md` §12b). The tick demo captures none of the intro
-/ title / menu / attract / map / tally — they run with no tick — so those flows
-ship verified against nothing and drift (a screen shown in the wrong ORDER, a
-dropped fade, a screen before/after the wrong transition). Capture a per-present-frame
-`(logical-screen, RGB-digest)` timeline from the VM and from the native front end,
-then diff by **sequence** (screen order + per-run frame count — catches the wrong-order
-class) and opt-in **pixels** (per-frame RGB, byte-exact — catches cadence bugs a
-single golden-frame test misses, e.g. a native screen that jumps to the settled image
-and drops the VM's multi-frame fade-in). Same oracle trick as the tick demo: capture
-the VM's per-frame sampled input and *inject* it into native (no synthetic keystrokes);
-needs a **cold-start demo** so the native cold-boot entry aligns. Worked adapters:
-`pre2_port/scripts/probe_frontend_timeline.py` (VM ground-truth prober — run on any
-demo), `scripts/frontend_capture.py`, `scripts/verify_native_frontend.py`.
+**Proving the native FRONT END behaves like the original — the screens with no game tick.**
+→ *The FOUR-GATE front-end proof* — **a framework engine**: `dos_re/frontend_timeline.py`
+(usage skeleton in dos_re's `docs/agent_toolbox.md` §12b). The tick demo captures
+none of the intro / title / menu / attract / map / tally — they run with no tick —
+so those flows ship verified against nothing and drift (a screen shown in the wrong
+ORDER, an attract demo entered instead of the recorded selection, a wall screen
+after the level load instead of before). A per-frame pixel diff is the WRONG proof
+(the VM recording and the native scene generator share no frame clock); the proof is
+the flow's discrete structure: **[1] screen ORDER** (`capture`/`collapse`/
+`filter_runs`/`diff_sequence`), **[2] a DECISION-STATE witness byte-compared at
+every screen transition** (`pack_fields`/`diff_fields` — chosen level/mode,
+live-vs-attract input source, lives, password state), **[3] gameplay-entry state
+byte-identical outside an OWNED byte set** (`diff_offsets` — sound-driver data /
+load-layout / scene scratch a VM-less product legitimately owns differently), and
+**[4] that owned set proven INERT** (`spread_beyond` — dual-replay the recorded
+gameplay ticks from both entry states; no tick may diverge outside the owned set).
+Input honesty: capture the raw key-flag window the VM's front end sampled per frame
+(include EVERYTHING the flow reads — menu key flags can live below the scancode
+table) and feed it to native CAUSALLY per screen (`input_segments`/`SegmentedInput`),
+so presses land on the same screen at the same relative moment. Needs a
+**cold-start demo**; seed the candidate from the FRONT-END entry state (boot
+constants), not a level-jump bootstrap. Worked end-to-end (all four gates green on a
+real cold-start demo; gate 2 caught a menu-entry fresh-start block on its first run):
+`pre2_port/scripts/verify_native_frontend.py`, plus `probe_frontend_timeline.py`
+(ground-truth prober — run on any demo) and `frontend_capture.py`.
 
 **A divergence appears 10 minutes into a demo.**
 → *Suffix repro*: `InputDemoPlayback.write_suffix` (already in the core)

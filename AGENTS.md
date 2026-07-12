@@ -32,6 +32,7 @@ tool first; read ASM only where the tools stop.
 | Question | Tool (run it, don't re-derive it) |
 |---|---|
 | Does the game boot / run here? | `python dos_re/tools/view.py --exe assets/<GAME>` (zero-setup viewer), then adapt [`scripts/play.py`](scripts/play.py) |
+| The game is DOS/4GW (MZ+`LE`, 32-bit)? | The PM tool set: `dos_re/tools/le_info.py` (structure), `pm_boot.py` (fail-loud bring-up loop), `pm_view.py` (zero-setup viewer), `pmlift.py` (census/lift/verify) — `create_pm_runtime` replaces `create_runtime`; cookbook "Protected mode" has the traps |
 | What does this snapshot look like? | `python dos_re/tools/render_frame.py <snapshot_dir>` → PNG |
 | Where does the time go? Where are the wait loops? | `python dos_re/tools/profile_hotspots.py` (tight backward edges = waits; boundary crossings = real cost) |
 | What code is at this address? | `python dos_re/tools/lindis.py` (linear disassembly at a snapshot) |

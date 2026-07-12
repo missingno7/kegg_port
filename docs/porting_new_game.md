@@ -53,6 +53,16 @@ rt.cpu.run(1_000_000)
 print(rt.cpu.addr(), rt.cpu.instruction_count)
 ```
 
+- **DOS/4GW / 32-bit protected-mode titles** (an MZ stub + `LE` header at
+  `e_lfanew`; ships with DOS4GW.EXE): the whole load-and-run layer is
+  different — `create_pm_runtime` (flat 386 core + DOS/4GW host) instead of
+  `create_runtime`, and the PM tool set (`le_info.py`, `pm_boot.py`,
+  `pm_view.py`, `pmlift.py` — dos_re's `docs/agent_toolbox.md` §4 routes
+  them). The extender is bootstrap, not gameplay: never emulate DOS/4GW,
+  replace its services from observed calls. The cookbook's "Protected mode"
+  section carries the earned traps (LE rebase above 1 MB, narrow IVT
+  seeding, Mode X planar rendering); `kegg_port` is the worked example of
+  the whole bring-up.
 - If the EXE is packed (LZEXE etc.): the unpacker is *bootstrap, not gameplay*.
   Run it once (`dos_re/bootstrap_lzexe.py` accelerates the LZEXE 0.91 loop; a
   different packer needs its own accelerator or patience), then

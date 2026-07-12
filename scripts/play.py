@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "dos_re"))   # the dos_re submodule's repo root
 
 from dos_re.dos4gw import DosInputExhausted, render_pm_frame   # noqa: E402
 from dos_re.frame_verify import write_rgb_png                  # noqa: E402
+from dos_re.pm_snapshot import load_pm_snapshot, save_pm_snapshot  # noqa: E402
 from kegg.runtime import create_game_runtime                   # noqa: E402
 
 # pygame key name -> set-1 scancode (make code; break = make | 0x80).
@@ -113,6 +114,11 @@ def run_viewer(rt, args) -> int:
                     write_rgb_png(out, rgb, width=w, height=h)
                     print(f"screenshot -> {out}")
                     continue
+                if make and name == "f12":
+                    out = ROOT / "artifacts" / "snapshots" / f"snap_{int(now * 1000)}"
+                    save_pm_snapshot(rt, out)
+                    print(f"snapshot -> {out}")
+                    continue
                 _send_key(dos, name, make)
                 if make and waiting_console:
                     ch = ev.unicode
@@ -161,9 +167,13 @@ def main(argv=None) -> int:
                     help="instruction budget (headless)")
     ap.add_argument("--png", default="", help="headless: render the final screen")
     ap.add_argument("--scale", type=int, default=3, help="window scale factor")
+    ap.add_argument("--snapshot", default="", help="resume from a saved snapshot dir")
     args = ap.parse_args(argv)
 
-    rt = create_game_runtime(args.exe)
+    if args.snapshot:
+        rt = load_pm_snapshot(args.exe, args.snapshot)
+    else:
+        rt = create_game_runtime(args.exe)
     if args.headless:
         return run_headless(rt, args)
     return run_viewer(rt, args)

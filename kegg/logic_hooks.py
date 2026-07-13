@@ -16,6 +16,7 @@ from kegg.recovered.anim import (update_anim_timers, build_draw_list,
 from kegg.recovered.physics import swap_ball_y, rects_overlap
 from kegg.recovered.sequence import step_sequence
 from kegg.recovered.present import swap_display_pages, set_clip_rect, set_draw_params
+from kegg.recovered.effects import spawn_effect, EFFECT_ARRAY, EFFECT_COUNT, EFFECT_MAX, EFFECT_STRIDE
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
@@ -27,6 +28,7 @@ STEP_SEQ = 0x11B17E
 PAGE_SWAP = 0x11C886
 SET_CLIP = 0x11B57A
 SET_DRAW_PARAMS = 0x11B541
+SPAWN_EFFECT = 0x117E62
 
 
 def anim_timers_118345(cpu):
@@ -329,6 +331,33 @@ def set_draw_params_11b541(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def spawn_effect_117e62(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    count = mem.r32(EFFECT_COUNT)
+    if count >= EFFECT_MAX:
+        # `cmp [count], 0x32` then jge -> early return; no writes, flags = cmp.
+        cpu._flags_sub(count, EFFECT_MAX, count - EFFECT_MAX, 32)
+        mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+        mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+        cpu.eip = cpu.pop(4)
+        return
+
+    flags = mem.r32(e + 0x1C)                       # arg6 (the flag word)
+    spawn_effect(mem.data, mem.r32(e + 4), mem.r32(e + 8), mem.r32(e + 0xC),
+                 mem.r32(e + 0x10), mem.r32(e + 0x14), mem.r32(e + 0x18), flags)
+
+    # Exit: eax = the record pointer (= [EFFECT_PTR]); edx = the last packed bit
+    # value (arg6&1)<<8; the last flag op is `inc [count]`.
+    r[0] = (EFFECT_ARRAY + count * EFFECT_STRIDE) & 0xFFFFFFFF
+    r[2] = (flags & 1) << 8
+    cpu._flags_add(count, 1, count + 1, 32)
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -350,4 +379,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[SET_CLIP] = "set_clip_rect_11b57a"
     cpu.replacement_hooks[SET_DRAW_PARAMS] = set_draw_params_11b541
     cpu.hook_names[SET_DRAW_PARAMS] = "set_draw_params_11b541"
-    return 10
+    cpu.replacement_hooks[SPAWN_EFFECT] = spawn_effect_117e62
+    cpu.hook_names[SPAWN_EFFECT] = "spawn_effect_117e62"
+    return 11

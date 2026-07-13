@@ -30,6 +30,8 @@ def create_game_runtime(exe_path: str | Path, *, game_root: str | Path | None = 
     if install_replacements:
         from kegg.render_hooks import install_render_hooks
         from kegg.logic_hooks import install_logic_hooks
+        from kegg.composition_hooks import install_composition_hooks
         install_render_hooks(rt.cpu)      # the two recovered Mode X blitters
         install_logic_hooks(rt.cpu)       # recovered per-frame gameplay logic
+        install_composition_hooks(rt.cpu)  # recovered composed (non-leaf) routines
     return rt

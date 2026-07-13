@@ -124,6 +124,7 @@ docs/kegg/control_flow.md.
 | 0x11b17e | step_sequence — {value,count} record stepper (advance/reload, negative count loops back) | 42 | **RECOVERED** → `kegg/recovered/sequence.py` | 2337/2337 oracle-exact over the demo |
 | 0x11c886 | swap_display_pages — the per-frame page flip (dbl-buffer offset swap) | 20 | **RECOVERED** → `kegg/recovered/present.py` | 390/390 oracle-exact over the demo |
 | 0x11b57a | set_clip_rect — normalize a two-corner box → the clip-bound globals | 37 | **RECOVERED** → `kegg/recovered/present.py` | 390/390 oracle-exact over the demo |
+| 0x114291 | remove_list_element — active brick-list compaction (→ memcpy) | 26 | **RECOVERED (composition)** → `kegg/recovered/collision.py` | 61/61 observable-state over the demo |
 
 The demo (390 frames, 170 events) drives 0x11eda0/0x11fbc0/0x11fc1e once per
 frame — a rich physics corpus.  Recovering it surfaced an interrupt-atomicity
@@ -139,10 +140,14 @@ programming), 0x123f76 (Watcom memcpy), 0x121494 (DMA-mask OUT), 0x123fad/
 0x124771 (port in/out) — hardware, not gameplay logic.  Remaining **pure
 gameplay leaves** still reached in this demo (0x11xxxx, no calls/int/port):
 0x119e54 (44 ins), 0x11fe6a (46 ins), 0x117e62 (81 ins), 0x115381 (238 ins,
-the biggest), 0x11b541 (21 ins), 0x119053 (71), 0x118fce (35).  The core ball physics (integration/bounce/brick collision behind the
-0x112c72/0x11353f handlers) stays gated shut in this demo window — needs a
-capture with the ball actively bouncing to reach.  The once-per-frame dispatchers 0x11fbc0/0x11fc1e call
-0x11fa42 and the ball handlers [0x147b3f]=0x112c72 / [0x147b43]=0x11353f;
-those are gated shut in this demo's window, so recover the flat leaves first.
-0x11ee65 (390/f) is VGA display-start programming (CRTC 0x0c/0x0d via the
-port-out helper 0x124771) — render/present hardware, not gameplay logic.
+the biggest), 0x11b541 (21 ins), 0x119053 (71), 0x118fce (35).
+
+**Correction:** brick collision IS active in this demo (rects_overlap fires
+2364×) — it runs through the multi-ball path, NOT the single-ball handlers
+[0x147b3f]=0x112c72 / [0x147b43]=0x11353f (those stay idle here).  The
+collision-response routines 0x114085 (once/f) / 0x115aaf / 0x116327 / 0x1185a4
+are **non-leaves** composing the recovered leaves; recover them as composed
+source proven by the composition verifier (observable-state diff, ignoring the
+transient stack frame) — see docs/kegg/control_flow.md.  First done: 0x114291
+(remove_list_element → memcpy).  0x11ee65 (390/f) is VGA display-start
+programming (CRTC 0x0c/0x0d via port-out helper 0x124771) — render hardware.

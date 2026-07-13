@@ -3,6 +3,28 @@
 The per-frame call chain, recovered by walking the call stack at the vsync
 wait and disassembling each frame.  Runtime addresses (link = − 0x100000).
 
+## The brick-collision island (the real physics in the level-2 demo)
+
+`rects_overlap` (0x11b5df) fires 2364× in the demo — collision IS active; the
+ball-vs-brick logic runs through the multi-ball path, not the single-ball
+handlers.  The **collision-response routines** are `0x114085` (once/frame),
+`0x115aaf`, `0x116327`, `0x1185a4`.  Each composes the recovered leaves
+(`setup_sprite_rect` 0x118004 + `rects_overlap` 0x11b5df + `step_sequence`
+0x11b17e) with a few more calls.  `0x114085` is the ball-vs-brick loop: build
+the ball's sprite rect, iterate the active brick list at 0x14a990, test each
+brick against the ball, and on a hit run the response — remove the brick
+(`0x114291`), emit an effect, and call the per-type handler `[0x148db8]`.
+
+These are **non-leaves**, so they are recovered as clean composed source and
+proven with the **composition verifier** (`dos_re/pm_composition.py`): it diffs
+only the observable state (every byte written outside the routine's own
+transient stack frame `[min_esp, entry_esp)`), not the throwaway spill/scratch
+of nested sub-calls.  Installed only where the original's result registers are
+dead at the call site, so the hook just reproduces the memory effect and
+returns.  Recovered so far: `0x114291` remove_list_element (brick-list
+compaction → memcpy) — `kegg/recovered/collision.py`,
+`kegg/composition_hooks.py`.  Next up the tree: 0x114085 itself.
+
 ## The main loop and frame
 
 ```

@@ -125,6 +125,7 @@ docs/kegg/control_flow.md.
 | 0x11c886 | swap_display_pages — the per-frame page flip (dbl-buffer offset swap) | 20 | **RECOVERED** → `kegg/recovered/present.py` | 390/390 oracle-exact over the demo |
 | 0x11b57a | set_clip_rect — normalize a two-corner box → the clip-bound globals | 37 | **RECOVERED** → `kegg/recovered/present.py` | 390/390 oracle-exact over the demo |
 | 0x114291 | remove_list_element — active brick-list compaction (→ memcpy) | 26 | **RECOVERED (composition)** → `kegg/recovered/collision.py` | 61/61 observable-state over the demo |
+| 0x114085 | process_brick_list — the ball-vs-brick collision + draw loop | 130 | **RECOVERED (composition)** → `kegg/recovered/collision.py` | 390/390 observable-state + byte-identical full-demo replay vs interpreted |
 
 The demo (390 frames, 170 events) drives 0x11eda0/0x11fbc0/0x11fc1e once per
 frame — a rich physics corpus.  Recovering it surfaced an interrupt-atomicity

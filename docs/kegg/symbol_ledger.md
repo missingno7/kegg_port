@@ -44,6 +44,7 @@ RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 | 0x11c886 | `swap_display_pages` — per-frame page flip ([0x14e2d4]↔[0x14e2d8] via scratch [0x14e2e8]) | VERIFIED | `kegg/recovered/present.py`; 390/390 oracle-exact over the level-2 demo |
 | 0x11b57a | `set_clip_rect(x0,y0,x1,y1)` — normalize a two-corner box (signed order) → clip globals [0x14e219..0x14e225] | VERIFIED | `kegg/recovered/present.py`; 390/390 oracle-exact over the level-2 demo |
 | 0x114291 | `remove_list_element` — compact the active brick list (dec count, shift tail down one 0x12 slot, dec index); calls memcpy 0x123f76 | VERIFIED (composition) | `kegg/recovered/collision.py`; 61/61 observable-state over the demo (non-leaf → composition verifier) |
+| 0x114085 | `process_brick_list` — the ball-vs-brick collision + draw loop (build ball rect; per brick: advance, despawn off-field, overlap-test, on hit run per-type handler + score + remove, else draw) | VERIFIED (composition) | `kegg/recovered/collision.py`; 390/390 observable-state over the demo + byte-identical full-demo replay (mem+VGA) vs interpreted. Composes the 4 recovered leaves; delegates the per-type handler via `cpu.call_through` |
 | 0x147b16/18/20/22 | ball scratch-Y / X / Y-front / Y-back (16-bit) | RECOVERED | `kegg/bridge/ball_state.py`; 0x11eda0 + control_flow.md |
 | 0x14e148 | live cell count (2× sprite count) | RECOVERED | data_model.md |
 | 0x14e14c | frame tick | RECOVERED | ^ |

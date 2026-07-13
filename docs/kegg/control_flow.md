@@ -21,9 +21,18 @@ only the observable state (every byte written outside the routine's own
 transient stack frame `[min_esp, entry_esp)`), not the throwaway spill/scratch
 of nested sub-calls.  Installed only where the original's result registers are
 dead at the call site, so the hook just reproduces the memory effect and
-returns.  Recovered so far: `0x114291` remove_list_element (brick-list
-compaction → memcpy) — `kegg/recovered/collision.py`,
-`kegg/composition_hooks.py`.  Next up the tree: 0x114085 itself.
+returns.  Recovered: `0x114291` remove_list_element (brick-list compaction →
+memcpy), and **`0x114085` process_brick_list itself** — the full ball-vs-brick
+loop — `kegg/recovered/collision.py`, `kegg/composition_hooks.py`.  0x114085
+composes the four recovered leaves (setup_sprite_rect, step_sequence,
+rects_overlap, remove_list_element) and delegates the un-recovered per-type
+handler `[0x148db8]` to the interpreter via **`cpu.call_through`** (dos_re) — a
+primitive that runs a sub-routine through the interpreter from inside a hook
+(pushes args + a sentinel return, runs to the callee's ret, cleans up; IRQ
+suppressed to stay atomic).  Verified 390/390 observable-state AND a
+byte-identical full-demo replay (memory + VGA planes) vs the pure interpreter,
+so it is transparent for live play.  Next collision responders: 0x115aaf,
+0x116327, 0x1185a4; and the per-type handlers 0x1145d0 / 0x114602 / 0x1146e7.
 
 ## The main loop and frame
 

@@ -32,8 +32,10 @@ def _install_hooks(cpu):
     installs them on a fresh boot)."""
     from kegg.render_hooks import install_render_hooks
     from kegg.logic_hooks import install_logic_hooks
+    from kegg.composition_hooks import install_composition_hooks
     install_render_hooks(cpu)
     install_logic_hooks(cpu)
+    install_composition_hooks(cpu)
 
 
 def main(argv=None) -> int:

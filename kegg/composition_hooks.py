@@ -12,9 +12,18 @@ verifier never tries to full-diff a composed routine.
 """
 from __future__ import annotations
 
-from kegg.recovered.collision import remove_list_element
+from kegg.recovered.collision import remove_list_element, process_brick_list
 
 REMOVE_LIST_ELEM = 0x114291
+PROCESS_BRICKS = 0x114085
+
+
+def process_brick_list_114085(cpu):
+    # The ball-vs-brick loop: composed pure logic + the per-type handler
+    # delegated to the interpreter (Watcom register ABI is irrelevant — the
+    # handlers read globals we maintain, not caller registers).
+    process_brick_list(cpu.mem.data, lambda h: cpu.call_through(h, ()))
+    cpu.eip = cpu.pop(4)
 
 
 def remove_list_element_114291(cpu):
@@ -29,4 +38,6 @@ def remove_list_element_114291(cpu):
 def install_composition_hooks(cpu) -> int:
     cpu.replacement_hooks[REMOVE_LIST_ELEM] = remove_list_element_114291
     cpu.hook_names[REMOVE_LIST_ELEM] = "remove_list_element_114291"
-    return 1
+    cpu.replacement_hooks[PROCESS_BRICKS] = process_brick_list_114085
+    cpu.hook_names[PROCESS_BRICKS] = "process_brick_list_114085"
+    return 2

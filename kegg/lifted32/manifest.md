@@ -55,6 +55,7 @@ from static reading (to be confirmed when refactored into `recovered/`).
 | 0x1183b1 | build_draw_list | 44 | iterates half the object table, emits draw commands ([0x14e2ec]) from object position/size fields |
 | 0x118345 | update_anim_timers | 38 | frame-counter [0x14e14c]++; per-object animation timer advance/reset ([+8] += [+0xc] or := [+4] at [+0x10]) |
 | 0x1195ee | load_object_fields | 23 | copies current-object fields ([0x14e158]) into the working globals [0x14e15c..0x14e162] |
+| 0x118004 | compute_sprite_bounds | 32 | sets [0x14e158]=arg1, calls 0x1195ee, folds signed x/y offsets into the caller's rect, derives right/bottom (= left/top + w/h − 2). **RECOVERED** → `kegg/recovered/anim.setup_sprite_rect`; ORACLE_PASSING (60/60) |
 | 0x115381 | (238 insts) | 238 | large leaf — biggest game-logic routine in the hot set |
 | 0x114cf2 | (418 insts) | 418 | large routine |
 | 0x113702 | (146 insts) | 146 | |

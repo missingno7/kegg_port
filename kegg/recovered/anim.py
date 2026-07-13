@@ -35,6 +35,31 @@ def load_current_object(state) -> None:
     state.cur_y_offset = obj.y_offset
 
 
+def setup_sprite_rect(state, out_ptr: int, sprite_def_ptr: int) -> None:
+    """Turn a seed point into a sprite's screen bounding box (recovered from
+    0x118004).
+
+    Places `sprite_def_ptr` as the current object, latches its geometry (via
+    the 0x1195ee rule), then folds the sprite's signed x/y offsets into the
+    caller's rect and derives the far edges:
+
+        left  += x_offset
+        top   += y_offset
+        right  = left + width  - 2
+        bottom = top  + height - 2
+
+    `out_ptr` is a 4-dword rect {left, top, right, bottom}; the caller seeds
+    left/top with the base position and this accumulates the sprite's offset.
+    """
+    state.current_object_ptr = sprite_def_ptr
+    load_current_object(state)
+    rect = state.rect_at(out_ptr)
+    rect.left = rect.left + state.cur_x_offset_s
+    rect.top = rect.top + state.cur_y_offset_s
+    rect.right = rect.left + state.cur_width_s - 2
+    rect.bottom = rect.top + state.cur_height_s - 2
+
+
 def _sar4(v: int) -> int:
     """Arithmetic right shift by 4 (ASM `sar r,4`).
 

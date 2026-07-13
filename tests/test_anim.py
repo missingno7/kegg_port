@@ -92,3 +92,33 @@ def test_build_draw_list_pure():
     assert r32(cursor + 0xA) == 1007 and r16(cursor + 0xA + 4) == 0x80
     assert r16(cursor + 0xA + 6) == 0xFFFE               # -2 low word
     assert r32(G_DRAW_CURSOR) == cursor + 0x14
+
+
+def test_setup_sprite_rect_pure():
+    from kegg.bridge.game_state import G_CUR_OBJ, G_CUR_WIDTH
+    from kegg.recovered.anim import setup_sprite_rect
+    d = bytearray(0x200000)
+    sdef = 0x108000
+    out = 0x109000
+    # sprite def: width(+2), height(+4), x_offset(+0xa), y_offset(+0xc).
+    # Use a NEGATIVE x_offset so left goes negative (regression: the fields are
+    # read signed `movsx`, and left/top accumulate).
+    d[sdef + 0x02:sdef + 0x04] = (10).to_bytes(2, "little")           # width
+    d[sdef + 0x04:sdef + 0x06] = (8).to_bytes(2, "little")            # height
+    d[sdef + 0x0A:sdef + 0x0C] = ((-3) & 0xFFFF).to_bytes(2, "little")  # x_off
+    d[sdef + 0x0C:sdef + 0x0E] = (5).to_bytes(2, "little")           # y_off
+    _w32(d, out + 0x00, 100)      # seed left
+    _w32(d, out + 0x04, 200)      # seed top
+
+    setup_sprite_rect(GameState(d), out, sdef)
+
+    def s32(a):
+        v = int.from_bytes(d[a:a + 4], "little")
+        return v - 0x100000000 if v & 0x80000000 else v
+    # current object latched, geometry copied
+    assert int.from_bytes(d[G_CUR_OBJ:G_CUR_OBJ + 4], "little") == sdef
+    assert int.from_bytes(d[G_CUR_WIDTH:G_CUR_WIDTH + 2], "little") == 10
+    # left = 100 + (-3) = 97 ; top = 200 + 5 = 205
+    assert s32(out + 0x00) == 97 and s32(out + 0x04) == 205
+    # right = left + width - 2 = 97 + 10 - 2 = 105 ; bottom = 205 + 8 - 2 = 211
+    assert s32(out + 0x08) == 105 and s32(out + 0x0C) == 211

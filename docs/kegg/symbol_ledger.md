@@ -37,6 +37,7 @@ RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 | 0x118345 | `update_anim_timers` — bump frame tick, per object snap/advance accumulator | VERIFIED | `kegg/recovered/anim.py`; PMHookVerifier byte-exact |
 | 0x1183b1 | `build_draw_list` — emit one draw command per sprite (X, W=coord_a>>4, H=coord_b>>4) | VERIFIED | `kegg/recovered/anim.py`; PMHookVerifier byte-exact |
 | 0x1195ee | `load_current_object` — latch [0x14e158] sprite-def geometry (w/h/x/y) into draw-path globals | VERIFIED | `kegg/recovered/anim.py`; single-call + 40/40 full-run oracle-exact |
+| 0x118004 | `setup_sprite_rect(out, def)` — place sprite def as current object (calls 0x1195ee), fold signed x/y offsets into out rect, derive right/bottom edges (w/h − 2) | VERIFIED | `kegg/recovered/anim.py`; single-call + 60/60 full-run oracle-exact |
 | 0x14e148 | live cell count (2× sprite count) | RECOVERED | data_model.md |
 | 0x14e14c | frame tick | RECOVERED | ^ |
 | 0x14e150 | object/cell table base | RECOVERED | ^ |

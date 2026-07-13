@@ -155,9 +155,12 @@ readable named source; reach the routines that only run in other game states
    with the differential verifier + a frame render compare; measure the
    speedup from the snapshot.  This is the "lift the rendering island" plan's
    speed payoff.
-2. **PM input-demo engine** — record/replay for PMRuntime (scancode + mouse +
-   console-key events keyed to a deterministic clock).  The human noticed
-   F11/record is missing: correct, it does not exist yet on the PM path.
+2. **PM input-demo engine** — DONE.  F11 records a self-contained demo
+   *bundle* directory (a start snapshot + an input manifest keyed to the
+   game's own frame clock); `--play-demo <dir>` boots from the bundle's own
+   snapshot and re-injects the input at the same frame boundaries, so a
+   mid-game demo replays deterministically.  Same shape as the real-mode
+   player's demos — the snapshot is an internal detail the user never wires up.
 3. More lifting from the gameplay snapshot (pmlift --snapshot now reaches
    gameplay functions).
 

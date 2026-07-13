@@ -11,11 +11,12 @@ from kegg.bridge.game_state import (GameState, ObjectView, SpriteView,
                                      OBJ_STRIDE, SPRITE_STRIDE, G_TABLE,
                                      G_CUR_OBJ, G_CUR_Y_OFF)
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
-                                  load_current_object, _sar4)
+                                  load_current_object, setup_sprite_rect, _sar4)
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
 LOAD_OBJ = 0x1195EE
+SPRITE_BOUNDS = 0x118004
 
 
 def anim_timers_118345(cpu):
@@ -106,6 +107,40 @@ def load_object_1195ee(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def sprite_bounds_118004(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]                               # entry esp -> [e]=ret, [e+4]=arg0, [e+8]=arg1
+    out_ptr = mem.r32(e + 4)               # rect to fill
+    sprite_def = mem.r32(e + 8)            # sprite definition pointer
+
+    state = GameState(mem.data)
+    setup_sprite_rect(state, out_ptr, sprite_def)
+
+    # Exit registers: the routine restores ebx/esi/edi/ebp via its epilogue
+    # pops (untouched here) and only leaves eax = arg0 (the last `mov
+    # eax,[ebp+0x14]`) and edx = the bottom edge (`... sub edx,2` then stored).
+    bottom = mem.r32(out_ptr + 0xC)        # == top + height - 2 (already written)
+    r[0] = out_ptr & 0xFFFFFFFF
+    r[2] = bottom
+    # flags from the final `sub edx,2`: a = edx before (bottom+2), res unmasked
+    # so the borrow (CF) is exact at the wrap boundary.
+    a = (bottom + 2) & 0xFFFFFFFF
+    cpu._flags_sub(a, 2, a - 2, 32)
+
+    # Stack scratch the oracle leaves below the return address: this routine's
+    # own four prologue pushes, then the nested `call 0x1195ee` frame (its
+    # return address + the four saved regs 0x1195ee itself pushes, whose ebp
+    # slot holds *this* routine's ebp = e-16).
+    ebx, ebp, esi, edi = r[3], r[5], r[6], r[7]
+    mem.w32(e - 4, ebx); mem.w32(e - 8, esi)
+    mem.w32(e - 12, edi); mem.w32(e - 16, ebp)
+    mem.w32(e - 20, 0x11801D)              # nested return address
+    mem.w32(e - 24, ebx); mem.w32(e - 28, esi)
+    mem.w32(e - 32, edi); mem.w32(e - 36, (e - 16) & 0xFFFFFFFF)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -113,4 +148,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[DRAW_LIST] = "build_draw_list_1183b1"
     cpu.replacement_hooks[LOAD_OBJ] = load_object_1195ee
     cpu.hook_names[LOAD_OBJ] = "load_object_1195ee"
-    return 3
+    cpu.replacement_hooks[SPRITE_BOUNDS] = sprite_bounds_118004
+    cpu.hook_names[SPRITE_BOUNDS] = "sprite_bounds_118004"
+    return 4

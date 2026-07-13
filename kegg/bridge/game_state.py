@@ -34,6 +34,60 @@ def _s32(v: int) -> int:
     return v - 0x100000000 if v & 0x80000000 else v
 
 
+def _s16(v: int) -> int:
+    return v - 0x10000 if v & 0x8000 else v
+
+
+class Rect:
+    """A 4-dword screen rectangle {left(+0), top(+4), right(+8), bottom(+0xc)},
+    signed 32-bit fields (the sprite bounds built by 0x118004)."""
+    __slots__ = ("_d", "base")
+
+    def __init__(self, d: bytearray, base: int):
+        self._d = d
+        self.base = base
+
+    def _get(self, off: int) -> int:
+        o = self.base + off
+        return _s32(int.from_bytes(self._d[o:o + 4], "little"))
+
+    def _set(self, off: int, v: int) -> None:
+        o = self.base + off
+        self._d[o:o + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+    @property
+    def left(self) -> int:            # +0x00
+        return self._get(0x00)
+
+    @left.setter
+    def left(self, v: int) -> None:
+        self._set(0x00, v)
+
+    @property
+    def top(self) -> int:             # +0x04
+        return self._get(0x04)
+
+    @top.setter
+    def top(self, v: int) -> None:
+        self._set(0x04, v)
+
+    @property
+    def right(self) -> int:           # +0x08
+        return self._get(0x08)
+
+    @right.setter
+    def right(self, v: int) -> None:
+        self._set(0x08, v)
+
+    @property
+    def bottom(self) -> int:          # +0x0c
+        return self._get(0x0C)
+
+    @bottom.setter
+    def bottom(self, v: int) -> None:
+        self._set(0x0C, v)
+
+
 class ObjectView:
     """One object: a 24-byte struct of signed 32-bit fields."""
     __slots__ = ("_d", "base")
@@ -181,6 +235,34 @@ class GameState:
     @property
     def current_object(self) -> "SpriteDef":
         return SpriteDef(self._d, self._u32(G_CUR_OBJ))
+
+    @property
+    def current_object_ptr(self) -> int:
+        return self._u32(G_CUR_OBJ)
+
+    @current_object_ptr.setter
+    def current_object_ptr(self, v: int) -> None:
+        self._d[G_CUR_OBJ:G_CUR_OBJ + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+    def rect_at(self, addr: int) -> "Rect":
+        return Rect(self._d, addr)
+
+    # signed views of the latched geometry (0x118004 reads them `movsx`)
+    @property
+    def cur_x_offset_s(self) -> int:
+        return _s16(self._rw16(G_CUR_X_OFF))
+
+    @property
+    def cur_y_offset_s(self) -> int:
+        return _s16(self._rw16(G_CUR_Y_OFF))
+
+    @property
+    def cur_width_s(self) -> int:
+        return _s16(self._rw16(G_CUR_WIDTH))
+
+    @property
+    def cur_height_s(self) -> int:
+        return _s16(self._rw16(G_CUR_HEIGHT))
 
     @property
     def cur_x_offset(self) -> int:

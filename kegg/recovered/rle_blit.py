@@ -11,6 +11,13 @@ that many SEGMENTS.  A segment's count byte `c`:
   * bit 7 clear -> COPY: `c` source bytes to the destination, optionally
     right-clipped at `clip_w` columns from the row start.
 
+Three call variants share this decode (docs/kegg/rendering_island.md):
+  * UNCLIPPED (0x122305): `decode_row` with NO_CLIP, accumulate stride model.
+  * HORIZONTAL-CLIP (0x122539): `decode_row` with a per-pass right clip,
+    row-reset stride model.
+  * VERTICAL-CLIP (0x1223b9): `decode_row_leftclip` — the sprite shifted left,
+    runs left of the visible edge clipped away.
+
 Pure: operates on a plane bytearray + the source bytes.  The adapter hook
 supplies the plane, source offset, per-row destination offset/stride and the
 clip width; here there is no VM, no segment:offset, no dos_re.
@@ -76,7 +83,7 @@ def decode_row_leftclip(plane, src, esi, dst, left_edge):
         if c & 0x80:                       # SKIP run (transparent), no clip
             skip = (-c) & 0xFF
             dst += skip
-            ecx = 0
+            ecx = skip                      # ASM `neg cl` leaves the skip in ecx
             continue
         x = dst - left_edge                 # <0 == left of the visible edge
         if x >= 0:                          # fully visible: plain copy
@@ -99,6 +106,19 @@ def decode_row_leftclip(plane, src, esi, dst, left_edge):
         esi += vis
         ecx = 0
     return esi, dst, ecx
+
+
+def decode_plane_pass_leftclip(plane, src, esi, dst0, rows, stride, shift):
+    """Decode `rows` rows with the left-edge shift model (vertical-clip variant).
+
+    Each row restarts at `dst0 + row*stride` as the visible left edge, with the
+    destination shifted left to `edge - shift`; runs left of the edge are
+    clipped.  Returns (new esi, last ecx)."""
+    ecx = 0
+    for row in range(rows):
+        edge = dst0 + row * stride
+        esi, _, ecx = decode_row_leftclip(plane, src, esi, edge - shift, edge)
+    return esi, ecx
 
 
 def decode_plane_pass(plane, src, esi, dst0, rows, stride, clip_w, accumulate):

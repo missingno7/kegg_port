@@ -11,15 +11,17 @@ back to the interpreter until it is recovered in turn.
 """
 from __future__ import annotations
 
-from kegg.recovered.rle_blit import decode_plane_pass, NO_CLIP
+from kegg.recovered.rle_blit import (decode_plane_pass,
+                                      decode_plane_pass_leftclip, NO_CLIP)
 
 BLIT = 0x1222D1
 
 # Scratch globals (runtime flat addresses; ds base 0).
 G_376 = 0x148376   # per-plane offset-table index (steps -2/pass)
 G_378 = 0x148378   # preamble skip-row count
-G_380 = 0x148380   # vertical-clip flag
+G_380 = 0x148380   # vertical-clip flag / left shift (>>2 at v-clip entry)
 G_388 = 0x148388   # horizontal-clip width (current pass)
+G_38C = 0x14838C   # v-clip plane phase (0..3, indexes the offset table)
 G_390 = 0x148390   # h-clip working width (steps -1/pass)
 G_36C = 0x14836C   # row stride
 G_3A4 = 0x1483A4   # rotating map mask
@@ -28,17 +30,11 @@ SCREEN_W = 0x14E35E
 APERTURE = 0xA0000
 
 
-def _run_original(cpu):
-    """Interpreter fallback: run the real routine to its RET, hook removed."""
-    hook = cpu.replacement_hooks.pop(BLIT, None)
-    try:
-        ret = cpu.mem.r32(cpu.r[4])
-        tgt = cpu.r[4] + 4
-        while not (cpu.eip == ret and cpu.r[4] >= tgt):
-            cpu.step()
-    finally:
-        if hook is not None:
-            cpu.replacement_hooks[BLIT] = hook
+def _sar(v, n):
+    """Arithmetic right shift of a 32-bit value read unsigned."""
+    if v & 0x80000000:
+        v -= 0x100000000
+    return v >> n
 
 
 def _skip_rows(src, esi, nrows):
@@ -59,7 +55,7 @@ def blit_1222d1(cpu):
     r = cpu.r
     d = mem.data
     if mem.r32(G_380) != 0:
-        _run_original(cpu)                  # vertical-clip -> interpreter (not yet recovered)
+        _blit_vclip(cpu)
         return
     hclip = mem.r32(G_388) != 0             # ASM: cmp dword [0x148388],0 (full 32-bit)
 
@@ -139,6 +135,78 @@ def blit_1222d1(cpu):
     r[2] = (edx & 0xFFFFFF00) | mask0         # dl <- final mask
     r[3] = ebx
     r[5] = ebp_neg
+    r[6] = entry_esi
+    r[7] = edi_flat
+    cpu._flags_sub(mask0, mask0, 0, 8)
+    cpu.eip = cpu.pop(4)
+
+
+def _blit_vclip(cpu):
+    """Vertical-clip variant (0x1223B9): left-edge shift model.
+
+    Entry splits the clip word into a plane phase ([0x14838c] = v&3) and a
+    left shift ([0x148380] = v>>2, arithmetic); the offset-table preamble is
+    indexed by the phase; each pass's rows are shifted left by the shift and
+    clipped at the visible edge; the phase advances 0->3 per pass, bumping the
+    shift on wrap.  No `dec ebx`; row-reset stride model.
+    """
+    mem = cpu.mem
+    r = cpu.r
+    d = mem.data
+    entry_edi, entry_ebx, entry_ebp, entry_esi = r[7], r[3], r[5], r[6]
+    v380 = mem.r32(G_380)
+    mem.w32(G_38C, v380 & 3)
+    mem.w32(G_380, _sar(v380, 2) & 0xFFFFFFFF)
+    stride = _sar(mem.r32(SCREEN_W), 2)
+    mem.w32(G_36C, stride & 0xFFFFFFFF)
+    phase = entry_edi & 3
+    edi_flat = entry_edi >> 2
+    mask0 = (0x11 << phase) & 0xFF
+    d[G_3A4] = mask0
+    d[G_3A5] = mask0
+    rows = entry_ebp
+    src = d
+
+    mask = mask0
+    ecx = 0
+    edx = 0
+    while True:
+        cpu.push(entry_ebx, 4); cpu.push((-entry_ebp) & 0xFFFFFFFF, 4)
+        cpu.push(entry_esi, 4); cpu.push(edi_flat, 4)
+        cpu.mem.vga.map_mask = mask & 0x0F
+        cpu.mem.vga.seq_index = 2
+        # preamble: index the offset table by the plane phase [0x14838c]
+        idx = (-5 + mem.r32(G_38C))
+        tbl = (entry_esi + ((idx * 2) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        esi = (entry_esi + mem.r16(tbl)) & 0xFFFFFFFF
+        skip = mem.r32(G_378)
+        if skip:
+            esi, _ = _skip_rows(src, esi, skip)
+        shift = mem.r32(G_380)
+        off = edi_flat - APERTURE
+        plane = cpu.mem.vga.planes[(mask & 0x0F).bit_length() - 1]
+        esi, ecx = decode_plane_pass_leftclip(plane, src, esi, off, rows, stride, shift)
+        edx = APERTURE + off + rows * stride
+        for _ in range(4):
+            cpu.pop(4)
+        # per-pass phase advance: 0..3, wrap bumps the shift
+        ph = (mem.r32(G_38C) + 1) & 0xFFFFFFFF
+        if ph == 4:
+            ph = 0
+            mem.w32(G_380, (mem.r32(G_380) + 1) & 0xFFFFFFFF)
+        mem.w32(G_38C, ph)
+        carry = mask >> 7
+        mask = ((mask << 1) | carry) & 0xFF
+        edi_flat = (edi_flat + carry) & 0xFFFFFFFF
+        d[G_3A4] = mask
+        if mask == mask0:
+            break
+
+    r[0] = 0
+    r[1] = ecx & 0xFFFFFFFF
+    r[2] = (edx & 0xFFFFFF00) | mask0
+    r[3] = entry_ebx
+    r[5] = (-entry_ebp) & 0xFFFFFFFF
     r[6] = entry_esi
     r[7] = edi_flat
     cpu._flags_sub(mask0, mask0, 0, 8)

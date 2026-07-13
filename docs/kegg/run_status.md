@@ -32,6 +32,17 @@ investigate), and start the demo corpus.
 
 ## Recent findings (newest first)
 
+- 2026-07-13 — **The sprite blitter is FULLY RECOVERED as native source** —
+  all three variants (unclipped, horizontal-clip, vertical-clip) now run as
+  clean native code with NO interpreter fallback.  The vertical-clip variant
+  (0x1223b9) uses a left-edge shift model (`decode_row_leftclip`): the sprite
+  is shifted left by `[0x148380]>>2` and runs left of the visible edge are
+  clipped; its offset-table preamble is indexed by a plane phase `[0x14838c]`
+  that advances 0->3 per pass.  **All 27,745 in-game blitter calls verified
+  byte-exact against the ASM oracle, zero divergence** (`pm_verification`;
+  `tests/test_rle_blit.py`).  This completes the rendering island's core
+  decode as recovered source.
+
 - 2026-07-13 — **The sprite blitter's unclipped path is RECOVERED as clean
   native source** — `kegg/recovered/rle_blit.py` (pure RLE decoder) +
   `kegg/render_hooks.py` (the thin VM bridge that reproduces the routine's

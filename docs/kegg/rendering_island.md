@@ -65,3 +65,21 @@ with `pm_verification.PMHookVerifier`; iterate on any diverging global.  Risk
 is the global bookkeeping, not the pixels (the pixels are proven) — so build
 it flag-path by flag-path, each verified before the next, falling back to the
 interpreter for any path not yet reproduced.
+
+## The second blitter — 0x1225FF (masked page-to-page copy)
+
+The sprite-erase pass (~61% of gameplay after the main blitter is hooked):
+copies non-transparent runs from the source page to the dest page in Mode X
+logical addressing (aperture offset = logical>>2), gated by the same RLE
+mask.  Reads a sprite descriptor at `ebx`: +2 height, +6 source RLE stream,
++0xa dest offset, +0x12 preamble-skip count.  Pages come from [0x14e2e0]
+(source) / [0x14e2e4] (dest); the delta [0x148370] = source - dest is added
+before the >>2.  No sequencer writes — it copies through the ambient map mask
+(the pixel copies go through cpu.mem so the plane/latch semantics are exact).
+
+Register exit subtleties: edx keeps its entry high 16 bits (`mov dx` writes
+only the low half; dl/dh both reach 0); esi/edi end as the last run's aperture
+addresses (src/dst + run bytes); ecx = last dest logical; ebx = final source
+cursor; ebp = last row base + screen width.
+
+RECOVERED in `kegg/render_hooks.py::blit2_1225ff`.

@@ -29,6 +29,11 @@ G_3A5 = 0x1483A5   # mask start copy (loop terminator)
 SCREEN_W = 0x14E35E
 APERTURE = 0xA0000
 
+BLIT2 = 0x1225FF   # RLE masked page-to-page copy (restore background under sprites)
+G_2E0 = 0x14E2E0   # source page base (logical)
+G_2E4 = 0x14E2E4   # dest page base (logical)
+G_370 = 0x148370   # page delta (source - dest), added before the /4 addressing
+
 
 def _sar(v, n):
     """Arithmetic right shift of a 32-bit value read unsigned."""
@@ -213,7 +218,82 @@ def _blit_vclip(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def blit2_1225ff(cpu):
+    """RLE masked page-to-page copy (0x1225FF) — the sprite-erase blitter.
+
+    Reads a sprite descriptor at ebx (+2 height, +6 source RLE stream, +0xa
+    dest offset, +0x12 preamble-skip count) and copies its non-transparent
+    runs from the source page to the dest page in Mode X logical addressing
+    (aperture offset = logical>>2), gated by the RLE mask.  The pixel copies
+    run through cpu.mem so the plane/latch/map-mask semantics are identical to
+    the interpreter by construction.  Reproduces the full register/global exit.
+    """
+    mem = cpu.mem
+    r = cpu.r
+    d = mem.data
+    struct_ptr = r[3]
+    entry_edx = r[2]                                 # only dx (low 16) is written; high half survives
+    page_dst = mem.r32(G_2E4)
+    page_src = mem.r32(G_2E0)
+    delta = (page_src - page_dst) & 0xFFFFFFFF
+    mem.w32(G_370, delta)
+    ebp = (mem.r32(struct_ptr + 0xA) + page_dst) & 0xFFFFFFFF
+    dl = (-mem.r16(struct_ptr + 2)) & 0xFF          # row counter (inc -> 0)
+    esi = mem.r32(struct_ptr + 6)
+    screen = mem.r32(SCREEN_W)
+
+    # preamble: skip [ebx+0x12] leading runs (advance the source cursor)
+    eax = 0
+    for _ in range(mem.r16(struct_ptr + 0x12)):
+        eax = d[esi]
+        esi = (esi + 1 + eax) & 0xFFFFFFFF
+
+    cur = esi                                        # ebx is reused as the source cursor
+    ecx = edi = 0
+    while True:                                      # row loop (dl -> 0)
+        ecx = ebp
+        dh = (-d[cur]) & 0xFF                        # segment count for this row
+        cur = (cur + 1) & 0xFFFFFFFF
+        while True:                                  # segment loop (dh -> 0)
+            al = d[cur]
+            cur = (cur + 1) & 0xFFFFFFFF
+            if al & 0x80:                            # SKIP run (transparent)
+                ecx = (ecx + ((-al) & 0xFF)) & 0xFFFFFFFF
+                eax = (-al) & 0xFF
+            else:                                    # COPY run through the aperture
+                edi = ecx
+                n = ((ecx & 3) + al + 3) >> 2
+                eax = (al + edi) & 0xFFFFFFFF
+                src_ap = ((delta + edi) & 0xFFFFFFFF) >> 2
+                dst_ap = edi >> 2
+                for i in range(n):
+                    mem.w8((dst_ap + i) & 0xFFFFFFFF, mem.r8((src_ap + i) & 0xFFFFFFFF))
+                esi = (src_ap + n) & 0xFFFFFFFF
+                edi = (dst_ap + n) & 0xFFFFFFFF
+                ecx = eax                            # xchg: dest advances by the run
+                eax = 0
+            dh = (dh + 1) & 0xFF
+            if dh == 0:
+                break
+        ebp = (ebp + screen) & 0xFFFFFFFF
+        dl = (dl + 1) & 0xFF
+        if dl == 0:
+            break
+
+    r[0] = 0
+    r[1] = ecx & 0xFFFFFFFF
+    r[2] = entry_edx & 0xFFFF0000                    # edx: dl=dh=0, high 16 unchanged from entry
+    r[3] = cur
+    r[5] = ebp
+    r[6] = esi
+    r[7] = edi
+    cpu._flags_add((dl - 1) & 0xFF, 1, 0, 8)
+    cpu.eip = cpu.pop(4)
+
+
 def install_render_hooks(cpu) -> int:
     cpu.replacement_hooks[BLIT] = blit_1222d1
     cpu.hook_names[BLIT] = "blit_1222d1"
-    return 1
+    cpu.replacement_hooks[BLIT2] = blit2_1225ff
+    cpu.hook_names[BLIT2] = "blit2_1225ff"
+    return 2

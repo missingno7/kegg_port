@@ -44,3 +44,30 @@ edge-clipped 0x1223B9+), programs the VGA sequencer via OUT mid-decode, and
 mutates scratch globals (0x148376/80/88, 0x14836C, 0x14838C, 0x1483A4/A5)
 the oracle diffs — so the recovered version must reproduce every side effect,
 not just the pixels.
+
+## Gameplay-logic batch (2026-07-13) — all ORACLE_PASSING x8 in-game
+
+Lifted + verified from the gameplay snapshot (snap_126359171); working names
+from static reading (to be confirmed when refactored into `recovered/`).
+
+| Entry | Working name | Insts | What it does |
+|---|---|---|---|
+| 0x1183b1 | build_draw_list | 44 | iterates half the object table, emits draw commands ([0x14e2ec]) from object position/size fields |
+| 0x118345 | update_anim_timers | 38 | frame-counter [0x14e14c]++; per-object animation timer advance/reset ([+8] += [+0xc] or := [+4] at [+0x10]) |
+| 0x1195ee | load_object_fields | 23 | copies current-object fields ([0x14e158]) into the working globals [0x14e15c..0x14e162] |
+| 0x115381 | (238 insts) | 238 | large leaf — biggest game-logic routine in the hot set |
+| 0x114cf2 | (418 insts) | 418 | large routine |
+| 0x113702 | (146 insts) | 146 | |
+| 0x1185a4 | (622 insts) | 622 | largest lifted routine |
+| 0x118004 | (32 insts) | 32 | |
+| 0x11c960 | (33 insts) | 33 | |
+| 0x11c9ce | (18 insts) | 18 | |
+| 0x11ee65 | (27 insts) | 27 | |
+| 0x11fd7b | (64 insts) | 64 | |
+| 0x122a9c | (56 insts) | 56 | draw-compositor helper (0x122a9c region) |
+| 0x122b94 | (66 insts) | 66 | draw-compositor helper |
+| 0x1245ad | (16 insts) | 16 | |
+
+Not lifted (hook by hand): 0x119e29 (vsync spin wait — env-coupled),
+0x119d40 (frame driver — indirect call), 0x122d5f (draw dispatcher — indirect
+`jmp [table]` at 0x1483aa, the type->handler switch).

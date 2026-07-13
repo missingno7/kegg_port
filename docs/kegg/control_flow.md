@@ -54,3 +54,25 @@ translate key edges into game-flag transitions (launch, pause, toggles).
   reached from these when the ball is active; locating the exact routine is
   the next structural step (this snapshot appears to be ball-on-paddle, so the
   launch trigger is the live subsystem).
+
+
+## Verification status of the gameplay layer (this snapshot)
+
+Lift-verified ORACLE_PASSING in situ from snap_126359171:
+0x119d40 (per-frame update), 0x11fb17 (gameplay handler), 0x11fd3b (the
+active input->action subsystem, bit 0x10), 0x11ed38.
+
+**NOT_REACHED in this snapshot** (their [0x147b34] flag bits are clear):
+0x11fb92 (launch trigger, 0x04), 0x11fbc0 (0x01), 0x11fc1e (0x02),
+0x11fe6a (0x80, an Enter/name-entry handler).  0x11fd3b dispatches actions
+through [0x147b47]; the ball-motion/collision code is reached only when the
+ball-active subsystems run.
+
+### CONFIRMED: the ball physics needs a ball-in-flight capture
+
+This snapshot is a ball-on-paddle waiting state — the launch trigger and the
+ball-active subsystems don't execute, so the physics/collision routines are
+NOT_REACHED and cannot be verified here.  A `scripts/play.py` snapshot (F12)
+taken **while the ball is bouncing** (and one mid-brick-hit) would exercise
+and unlock them.  Until then the game-rule recovery is capped at the input/
+dispatch layer above.

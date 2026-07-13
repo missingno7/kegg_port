@@ -94,3 +94,14 @@ Reproduce/emit any of them:
 artifacts/snapshots/snap_126359171 --entry 0xADDR --verify --emit-dir
 kegg/lifted32`.  (A whole-image static emit trips region-budget on some
 entries the snapshot-context scan accepts — lift from the snapshot.)
+
+
+## Gameplay control layer (2026-07-13) — verified from the ball-on-paddle snapshot
+
+ORACLE_PASSING x8: 0x119d40 (per-frame update / mode-handler caller),
+0x11fb17 (gameplay subsystem dispatcher, keyed on [0x147b34]), 0x11fd3b
+(active input->action subsystem), 0x11ed38.  Control-flow map in
+docs/kegg/control_flow.md.
+
+NOT_REACHED here (need a ball-in-flight snapshot): 0x11fb92 (launch),
+0x11fbc0, 0x11fc1e, 0x11fe6a, and the physics/collision they reach.

@@ -29,5 +29,7 @@ def create_game_runtime(exe_path: str | Path, *, game_root: str | Path | None = 
     rt = create_pm_runtime(exe_path, game_root=game_root, command_tail=command_tail)
     if install_replacements:
         from kegg.render_hooks import install_render_hooks
-        install_render_hooks(rt.cpu)
+        from kegg.logic_hooks import install_logic_hooks
+        install_render_hooks(rt.cpu)      # the two recovered Mode X blitters
+        install_logic_hooks(rt.cpu)       # recovered per-frame gameplay logic
     return rt

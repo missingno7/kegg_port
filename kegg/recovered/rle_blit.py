@@ -59,6 +59,48 @@ def decode_row(plane, src, esi, dst, row_x0, clip_w):
     return esi, dst, ecx
 
 
+def decode_row_leftclip(plane, src, esi, dst, left_edge):
+    """Decode one sprite row with LEFT-edge clipping (vertical-clip variant).
+
+    The sprite is shifted left: `dst` starts at `left_edge - shift`, and any
+    copy run (partly) left of `left_edge` is clipped away; skip runs advance
+    the destination transparently even while left of the edge.  No right clip.
+    Mirrors the ASM at 0x122420..0x122470.  Returns (new esi, dst, last ecx).
+    """
+    nseg = src[esi]
+    esi += 1
+    ecx = 0
+    for _ in range(nseg):
+        c = src[esi]
+        esi += 1
+        if c & 0x80:                       # SKIP run (transparent), no clip
+            skip = (-c) & 0xFF
+            dst += skip
+            ecx = 0
+            continue
+        x = dst - left_edge                 # <0 == left of the visible edge
+        if x >= 0:                          # fully visible: plain copy
+            plane[dst:dst + c] = src[esi:esi + c]
+            dst += c
+            esi += c
+            ecx = 0
+            continue
+        if x + c <= 0:                      # run entirely left of the edge
+            esi += c
+            dst += c
+            ecx = c
+            continue
+        cut = -x                            # skip the clipped-left part
+        dst += cut
+        esi += cut
+        vis = c - cut
+        plane[dst:dst + vis] = src[esi:esi + vis]
+        dst += vis
+        esi += vis
+        ecx = 0
+    return esi, dst, ecx
+
+
 def decode_plane_pass(plane, src, esi, dst0, rows, stride, clip_w, accumulate):
     """Decode `rows` rows into one plane.
 

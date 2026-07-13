@@ -24,6 +24,17 @@ def update_anim_timers(state) -> None:
             obj.accumulator = obj.accumulator + obj.step
 
 
+def load_current_object(state) -> None:
+    """Latch the current sprite definition's geometry into the working globals
+    the draw path reads (recovered from 0x1195ee): width, height, and the x/y
+    offsets of [0x14e158]'s sprite def."""
+    obj = state.current_object
+    state.cur_width = obj.width
+    state.cur_height = obj.height
+    state.cur_x_offset = obj.x_offset
+    state.cur_y_offset = obj.y_offset
+
+
 def _sar4(v: int) -> int:
     """Arithmetic right shift by 4 (ASM `sar r,4`).
 

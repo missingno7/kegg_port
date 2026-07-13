@@ -8,11 +8,14 @@ verifies byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
 from __future__ import annotations
 
 from kegg.bridge.game_state import (GameState, ObjectView, SpriteView,
-                                     OBJ_STRIDE, SPRITE_STRIDE, G_TABLE)
-from kegg.recovered.anim import update_anim_timers, build_draw_list, _sar4
+                                     OBJ_STRIDE, SPRITE_STRIDE, G_TABLE,
+                                     G_CUR_OBJ, G_CUR_Y_OFF)
+from kegg.recovered.anim import (update_anim_timers, build_draw_list,
+                                  load_current_object, _sar4)
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
+LOAD_OBJ = 0x1195EE
 
 
 def anim_timers_118345(cpu):
@@ -82,9 +85,32 @@ def build_draw_list_1183b1(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def load_object_1195ee(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    state = GameState(mem.data)
+    load_current_object(state)             # the recovered latch
+
+    # Exit registers: eax ends as [0x14e158] with its low word replaced by the
+    # last field read (obj +0xc = y_offset); the routine has no stack locals,
+    # so only the four saved regs remain as stack scratch.  edx/ecx untouched.
+    obj_ptr = mem.r32(G_CUR_OBJ)
+    r[0] = (obj_ptr & 0xFFFF0000) | mem.r16(G_CUR_Y_OFF)
+    e = r[4]
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    # The prologue's `sub esp, 0` (esp = e-16 after the 4 pushes) is the only
+    # flag-affecting instruction; the rest are movs.
+    v = (e - 16) & 0xFFFFFFFF
+    cpu._flags_sub(v, 0, v, 32)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
     cpu.replacement_hooks[DRAW_LIST] = build_draw_list_1183b1
     cpu.hook_names[DRAW_LIST] = "build_draw_list_1183b1"
-    return 2
+    cpu.replacement_hooks[LOAD_OBJ] = load_object_1195ee
+    cpu.hook_names[LOAD_OBJ] = "load_object_1195ee"
+    return 3

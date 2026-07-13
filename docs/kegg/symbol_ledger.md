@@ -30,6 +30,21 @@ RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 | — | game installs PM vectors 9, A, B, D, F, 71, 72 (no INT 8!) | OBSERVED | pm_vectors dump after boot |
 | — | SPACE make/break 0x39/0xB9 via KBC advances title → gameplay; page flip display_start 0x0→0x4000 | OBSERVED | after_space.png |
 
+## Per-frame logic island (recovered native, oracle-exact)
+
+| Address | What | Status | Evidence |
+|---|---|---|---|
+| 0x118345 | `update_anim_timers` — bump frame tick, per object snap/advance accumulator | VERIFIED | `kegg/recovered/anim.py`; PMHookVerifier byte-exact |
+| 0x1183b1 | `build_draw_list` — emit one draw command per sprite (X, W=coord_a>>4, H=coord_b>>4) | VERIFIED | `kegg/recovered/anim.py`; PMHookVerifier byte-exact |
+| 0x1195ee | `load_current_object` — latch [0x14e158] sprite-def geometry (w/h/x/y) into draw-path globals | VERIFIED | `kegg/recovered/anim.py`; single-call + 40/40 full-run oracle-exact |
+| 0x14e148 | live cell count (2× sprite count) | RECOVERED | data_model.md |
+| 0x14e14c | frame tick | RECOVERED | ^ |
+| 0x14e150 | object/cell table base | RECOVERED | ^ |
+| 0x14e154 | world-X offset added to each sprite position | RECOVERED | ^ |
+| 0x14e158 | current sprite-definition pointer | RECOVERED | 0x1195ee cross-ref (def +2 w, +4 h, +0xa x, +0xc y) |
+| 0x14e15c/e, 0x14e160/2 | latched cur x_off / y_off / width / height (draw-path working globals) | RECOVERED | 0x1195ee |
+| 0x14e2ec | draw-command output cursor (stride 0xA) | RECOVERED | 0x1183b1 |
+
 ## Notes
 
 - Fixup census: 6292 × off32 (SRC_OFFSET32=0x07), 4 × sel16 (SRC_SELECTOR16=0x02).

@@ -21,6 +21,14 @@ G_TABLE = 0x14E150         # object/cell table base pointer
 G_WORLD_X = 0x14E154       # world X offset added to each sprite's position
 G_DRAW_CURSOR = 0x14E2EC   # output cursor for the draw-command list
 
+# The "current object" being processed, and its geometry latched for the draw
+# path (0x1195ee copies the sprite def's fields into these working globals).
+G_CUR_OBJ = 0x14E158       # pointer to the current sprite-definition struct
+G_CUR_X_OFF = 0x14E15C     # <- def +0xa
+G_CUR_Y_OFF = 0x14E15E     # <- def +0xc
+G_CUR_WIDTH = 0x14E160     # <- def +0x02
+G_CUR_HEIGHT = 0x14E162    # <- def +0x04
+
 
 def _s32(v: int) -> int:
     return v - 0x100000000 if v & 0x80000000 else v
@@ -133,20 +141,6 @@ class GameState:
         return _s32(self._u32(G_WORLD_X))
 
     @property
-    def sprite_count(self) -> int:
-        return self.object_count >> 1      # ASM `sar count,1`
-
-    def sprites(self):
-        base = self._u32(G_TABLE)
-        for i in range(self.sprite_count):
-            yield SpriteView(self._d, base + i * SPRITE_STRIDE)
-
-    def alloc_draw_command(self) -> "DrawCommand":
-        cur = self._u32(G_DRAW_CURSOR)
-        self._d[G_DRAW_CURSOR:G_DRAW_CURSOR + 4] = (cur + 0xA).to_bytes(4, "little")
-        return DrawCommand(self._d, cur)
-
-    @property
     def tick(self) -> int:                 # [0x14e14c], read signed for comparisons
         return _s32(self._u32(G_TICK))
 
@@ -162,3 +156,88 @@ class GameState:
         base = self._u32(G_TABLE)
         for i in range(self.object_count):
             yield ObjectView(self._d, base + i * OBJ_STRIDE)
+
+    @property
+    def sprite_count(self) -> int:
+        return self.object_count >> 1      # ASM `sar count,1`
+
+    def sprites(self):
+        base = self._u32(G_TABLE)
+        for i in range(self.sprite_count):
+            yield SpriteView(self._d, base + i * SPRITE_STRIDE)
+
+    def alloc_draw_command(self) -> "DrawCommand":
+        cur = self._u32(G_DRAW_CURSOR)
+        self._d[G_DRAW_CURSOR:G_DRAW_CURSOR + 4] = (cur + 0xA).to_bytes(4, "little")
+        return DrawCommand(self._d, cur)
+
+    # ---- current sprite definition + its latched geometry -------------------
+    def _rw16(self, addr: int) -> int:
+        return int.from_bytes(self._d[addr:addr + 2], "little")
+
+    def _ww16(self, addr: int, v: int) -> None:
+        self._d[addr:addr + 2] = (v & 0xFFFF).to_bytes(2, "little")
+
+    @property
+    def current_object(self) -> "SpriteDef":
+        return SpriteDef(self._d, self._u32(G_CUR_OBJ))
+
+    @property
+    def cur_x_offset(self) -> int:
+        return self._rw16(G_CUR_X_OFF)
+
+    @cur_x_offset.setter
+    def cur_x_offset(self, v: int) -> None:
+        self._ww16(G_CUR_X_OFF, v)
+
+    @property
+    def cur_y_offset(self) -> int:
+        return self._rw16(G_CUR_Y_OFF)
+
+    @cur_y_offset.setter
+    def cur_y_offset(self, v: int) -> None:
+        self._ww16(G_CUR_Y_OFF, v)
+
+    @property
+    def cur_width(self) -> int:
+        return self._rw16(G_CUR_WIDTH)
+
+    @cur_width.setter
+    def cur_width(self, v: int) -> None:
+        self._ww16(G_CUR_WIDTH, v)
+
+    @property
+    def cur_height(self) -> int:
+        return self._rw16(G_CUR_HEIGHT)
+
+    @cur_height.setter
+    def cur_height(self, v: int) -> None:
+        self._ww16(G_CUR_HEIGHT, v)
+
+
+class SpriteDef:
+    """A sprite-definition struct: 16-bit geometry read by the draw path."""
+    __slots__ = ("_d", "base")
+
+    def __init__(self, d: bytearray, base: int):
+        self._d = d
+        self.base = base
+
+    def _w(self, off: int) -> int:
+        return int.from_bytes(self._d[self.base + off:self.base + off + 2], "little")
+
+    @property
+    def width(self) -> int:        # +0x02
+        return self._w(0x02)
+
+    @property
+    def height(self) -> int:       # +0x04
+        return self._w(0x04)
+
+    @property
+    def x_offset(self) -> int:     # +0x0a
+        return self._w(0x0A)
+
+    @property
+    def y_offset(self) -> int:     # +0x0c
+        return self._w(0x0C)

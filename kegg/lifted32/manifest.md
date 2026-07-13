@@ -71,3 +71,26 @@ from static reading (to be confirmed when refactored into `recovered/`).
 Not lifted (hook by hand): 0x119e29 (vsync spin wait — env-coupled),
 0x119d40 (frame driver — indirect call), 0x122d5f (draw dispatcher — indirect
 `jmp [table]` at 0x1483aa, the type->handler switch).
+
+
+## Broad coverage sweep (2026-07-13)
+
+With the indirect-jump-as-tail-jump lift, an auto-entries census of the
+gameplay code hit **120 / 120 liftable (100%)** — the tail-jump support
+removed the last common refusal.  A full lift+verify pass over those 120
+from the gameplay snapshot: **49 ORACLE_PASSING (byte-exact in situ, zero
+divergence), 71 NOT_REACHED** (need other game states to exercise).
+
+The 49 verified this pass (runtime addrs): 0x1158B0 0x117E62 0x118004
+0x118066 0x11843A 0x119D40 0x119E10 0x11B17E 0x11B1DF 0x11B4A7 0x11B541
+0x11B57A 0x11B5DF 0x11C14B 0x11C20D 0x11C3AB 0x11C8C0 0x11C9CE 0x11DD01
+0x11ED38 0x11EE65 0x11FA42 0x120137 0x120502 0x12065B 0x12085A 0x121420
+0x122CBD 0x122F9C 0x1230B7 0x123889 0x123A48 0x123B72 0x123BB6 0x123F0E
+0x123F5D 0x123F76 0x123FAD 0x124120 0x1245AD 0x1245D0 0x124609 0x124617
+0x124705 0x124713 0x124771 0x124A8C 0x126706 0x1267AC.
+
+Reproduce/emit any of them:
+`python dos_re/tools/pmlift.py --exe assets/KE.EXE --snapshot
+artifacts/snapshots/snap_126359171 --entry 0xADDR --verify --emit-dir
+kegg/lifted32`.  (A whole-image static emit trips region-budget on some
+entries the snapshot-context scan accepts — lift from the snapshot.)

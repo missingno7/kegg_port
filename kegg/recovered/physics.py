@@ -7,6 +7,30 @@ oracle in the installing hook).
 from __future__ import annotations
 
 
+def rects_overlap(a, b) -> bool:
+    """Axis-aligned bounding-box overlap test (recovered from 0x11b5df).
+
+    ``a`` and ``b`` are rects exposing signed ``left``/``top``/``right``/
+    ``bottom`` (the {+0,+4,+8,+0xc} struct the sprite bounds use).  They
+    intersect iff neither lies fully past the other on any axis — the four
+    signed compares the ASM short-circuits on (jg/jl):
+
+        a.left <= b.right and a.top <= b.bottom and
+        a.right >= b.left and a.bottom >= b.top
+
+    The original returns -1 (all bits) for overlap and 0 for miss.
+    """
+    if a.left > b.right:
+        return False
+    if a.top > b.bottom:
+        return False
+    if a.right < b.left:
+        return False
+    if a.bottom < b.top:
+        return False
+    return True
+
+
 def swap_ball_y(state) -> None:
     """Flip the ball's Y double-buffer (recovered from 0x11eda0).
 

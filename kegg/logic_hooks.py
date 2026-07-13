@@ -7,19 +7,20 @@ verifies byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
 """
 from __future__ import annotations
 
-from kegg.bridge.game_state import (GameState, ObjectView, SpriteView,
+from kegg.bridge.game_state import (GameState, ObjectView, SpriteView, Rect,
                                      OBJ_STRIDE, SPRITE_STRIDE, G_TABLE,
                                      G_CUR_OBJ, G_CUR_Y_OFF)
 from kegg.bridge.ball_state import BallState, B_Y_TEMP
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
-from kegg.recovered.physics import swap_ball_y
+from kegg.recovered.physics import swap_ball_y, rects_overlap
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
 LOAD_OBJ = 0x1195EE
 SPRITE_BOUNDS = 0x118004
 BALL_Y_SWAP = 0x11EDA0
+RECTS_OVERLAP = 0x11B5DF
 
 
 def anim_timers_118345(cpu):
@@ -162,6 +163,47 @@ def swap_ball_y_11eda0(cpu):
     cpu.eip = cpu.pop(4)
 
 
+# The four short-circuit compares of 0x11b5df, in order: (arg0 field, arg1
+# field, "the branch that exits with 'no overlap'").  'g' = jg (a>b exits),
+# 'l' = jl (a<b exits).  a.left>b.right, a.top>b.bottom, a.right<b.left,
+# a.bottom<b.top.
+_OVERLAP_CHECKS = ((0x0, 0x8, 'g'), (0x4, 0xC, 'g'),
+                   (0x8, 0x0, 'l'), (0xC, 0x4, 'l'))
+
+
+def rects_overlap_11b5df(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    a = mem.r32(e + 4)                      # arg0 rect ptr
+    b = mem.r32(e + 8)                      # arg1 rect ptr
+
+    # Walk the compares exactly as the ASM: each loads edx = arg0.field and
+    # `cmp edx, arg1.field`; the first that satisfies its exit branch returns
+    # 0 (miss), otherwise all pass and it returns -1 (hit).  edx and the flags
+    # end as those of the *deciding* compare (or the last, on a hit).
+    result = 0xFFFFFFFF
+    edx = m = 0
+    for a_off, b_off, jk in _OVERLAP_CHECKS:
+        edx = mem.r32(a + a_off)
+        m = mem.r32(b + b_off)
+        se = edx - 0x100000000 if edx & 0x80000000 else edx
+        sm = m - 0x100000000 if m & 0x80000000 else m
+        if (jk == 'g' and se > sm) or (jk == 'l' and se < sm):
+            result = 0
+            break
+
+    r[0] = result                          # eax = [ebp-4] = the -1/0 result
+    r[2] = edx                             # edx = last arg0 field loaded
+    cpu._flags_sub(edx, m, edx - m, 32)    # flags of the deciding `cmp`
+
+    # Stack scratch: four saved regs + the frame local [ebp-4] (the result).
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    mem.w32(e - 20, result)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -173,4 +215,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[SPRITE_BOUNDS] = "sprite_bounds_118004"
     cpu.replacement_hooks[BALL_Y_SWAP] = swap_ball_y_11eda0
     cpu.hook_names[BALL_Y_SWAP] = "swap_ball_y_11eda0"
-    return 5
+    cpu.replacement_hooks[RECTS_OVERLAP] = rects_overlap_11b5df
+    cpu.hook_names[RECTS_OVERLAP] = "rects_overlap_11b5df"
+    return 6

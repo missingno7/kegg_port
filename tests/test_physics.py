@@ -10,7 +10,24 @@ for p in (str(ROOT), str(ROOT / "dos_re")):
         sys.path.insert(0, p)
 
 from kegg.bridge.ball_state import BallState, B_Y_TEMP, B_Y0, B_Y1  # noqa: E402
-from kegg.recovered.physics import swap_ball_y  # noqa: E402
+from kegg.recovered.physics import swap_ball_y, rects_overlap  # noqa: E402
+
+
+class _R:
+    """A minimal {left,top,right,bottom} rect for the pure overlap test."""
+    def __init__(self, left, top, right, bottom):
+        self.left, self.top, self.right, self.bottom = left, top, right, bottom
+
+
+def test_rects_overlap_pure():
+    a = _R(10, 10, 20, 20)
+    assert rects_overlap(a, _R(15, 15, 25, 25)) is True    # corner overlap
+    assert rects_overlap(a, _R(20, 20, 30, 30)) is True    # edge-touch counts
+    assert rects_overlap(a, _R(21, 10, 30, 20)) is False   # b fully right
+    assert rects_overlap(a, _R(0, 21, 5, 30)) is False     # b fully below
+    assert rects_overlap(a, _R(0, 0, 9, 5)) is False       # b fully left+above
+    # signed edges: negative coords behave like any other
+    assert rects_overlap(_R(-20, -20, -10, -10), _R(-15, -15, -5, -5)) is True
 
 
 def _w16(d, a, v):

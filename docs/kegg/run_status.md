@@ -31,13 +31,22 @@ readable named source; reach the routines that only run in other game states
 - **Phase:** Lifting loop (charter Phase 1) — the rendering island's two
   blitters recovered as clean source; a broad batch of gameplay logic
   lift-verified. Bring-up (steps 0–6) done except a formal demo corpus.
-- **Recovered (clean source):** the two Mode X sprite blitters
-  (`kegg/recovered/rle_blit.py` + `kegg/render_hooks.py`), 79,501 in-game
-  calls verified byte-exact.
+- **Recovered (clean source):** the whole per-frame render chain — the two
+  Mode X sprite blitters (`kegg/recovered/rle_blit.py`) AND the animation
+  updater + draw-list builder (`kegg/recovered/anim.py` over the object/sprite
+  bridge `kegg/bridge/game_state.py`).  80,187 in-game calls verified
+  byte-exact, zero divergence.
+- **Data model:** the object system is recovered — a table of 0x18-byte
+  animation cells, paired into 0x30-byte sprites; per-frame the accumulators
+  advance and drive each sprite's drawn size/position (docs/data_model.md).
 - **Lift-verified (scaffold for recovery):** ~50 routines ORACLE_PASSING in
   situ (incl. the draw dispatcher via the new tail-jump lift); 100% of the
   auto-entries census is liftable.
-- **Demo corpus:** none yet (one gameplay snapshot: snap_126359171).
+- **Demo corpus:** one gameplay snapshot (snap_126359171). **To recover more
+  breadth I need more captured states** — 71 lift targets are NOT_REACHED
+  because they only run in the menus / other levels / death / game-over.
+  A few `python scripts/play.py` sessions with F12 snapshots at those
+  moments would unblock them.
 - **Open blockers:** none.
 
 ## Recent findings (newest first)

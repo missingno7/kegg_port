@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from kegg.bridge.game_state import (GameState, ObjectView, SpriteView, Rect,
                                      OBJ_STRIDE, SPRITE_STRIDE, G_TABLE,
-                                     G_CUR_OBJ, G_CUR_Y_OFF)
+                                     G_CUR_OBJ, G_CUR_Y_OFF, G_PAGE0)
 from kegg.bridge.ball_state import BallState, B_Y_TEMP
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
 from kegg.recovered.physics import swap_ball_y, rects_overlap
 from kegg.recovered.sequence import step_sequence
+from kegg.recovered.present import swap_display_pages
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
@@ -23,6 +24,7 @@ SPRITE_BOUNDS = 0x118004
 BALL_Y_SWAP = 0x11EDA0
 RECTS_OVERLAP = 0x11B5DF
 STEP_SEQ = 0x11B17E
+PAGE_SWAP = 0x11C886
 
 
 def anim_timers_118345(cpu):
@@ -254,6 +256,24 @@ def step_sequence_11b17e(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def swap_display_pages_11c886(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    swap_display_pages(GameState(mem.data))    # page0 <-> page1 via scratch
+
+    # eax = [ebp-4] = page0 (final).  edx/ecx untouched; the only flag op is
+    # the prologue `sub esp, 4` (esp = e-16 after the 4 pushes).
+    result = mem.r32(G_PAGE0)
+    r[0] = result
+    v = (e - 16) & 0xFFFFFFFF
+    cpu._flags_sub(v, 4, v - 4, 32)
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    mem.w32(e - 20, result)                    # [ebp-4] frame local
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -269,4 +289,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[RECTS_OVERLAP] = "rects_overlap_11b5df"
     cpu.replacement_hooks[STEP_SEQ] = step_sequence_11b17e
     cpu.hook_names[STEP_SEQ] = "step_sequence_11b17e"
-    return 7
+    cpu.replacement_hooks[PAGE_SWAP] = swap_display_pages_11c886
+    cpu.hook_names[PAGE_SWAP] = "swap_display_pages_11c886"
+    return 8

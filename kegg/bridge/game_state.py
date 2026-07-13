@@ -21,6 +21,12 @@ G_TABLE = 0x14E150         # object/cell table base pointer
 G_WORLD_X = 0x14E154       # world X offset added to each sprite's position
 G_DRAW_CURSOR = 0x14E2EC   # output cursor for the draw-command list
 
+# The double-buffered display-page offsets, swapped once per frame (0x11c886)
+# through the scratch slot (which is left holding the old front page).
+G_PAGE0 = 0x14E2D4         # front / display page offset
+G_PAGE1 = 0x14E2D8         # back / draw page offset
+G_PAGE_TMP = 0x14E2E8      # swap scratch (shared with the compositor's scratch)
+
 # The "current object" being processed, and its geometry latched for the draw
 # path (0x1195ee copies the sprite def's fields into these working globals).
 G_CUR_OBJ = 0x14E158       # pointer to the current sprite-definition struct
@@ -219,6 +225,34 @@ class GameState:
         base = self._u32(G_TABLE)
         for i in range(self.sprite_count):
             yield SpriteView(self._d, base + i * SPRITE_STRIDE)
+
+    # ---- double-buffered display pages (0x11c886 swaps page0 <-> page1) ------
+    def _w32(self, addr: int, v: int) -> None:
+        self._d[addr:addr + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+    @property
+    def page0(self) -> int:
+        return self._u32(G_PAGE0)
+
+    @page0.setter
+    def page0(self, v: int) -> None:
+        self._w32(G_PAGE0, v)
+
+    @property
+    def page1(self) -> int:
+        return self._u32(G_PAGE1)
+
+    @page1.setter
+    def page1(self, v: int) -> None:
+        self._w32(G_PAGE1, v)
+
+    @property
+    def page_tmp(self) -> int:
+        return self._u32(G_PAGE_TMP)
+
+    @page_tmp.setter
+    def page_tmp(self, v: int) -> None:
+        self._w32(G_PAGE_TMP, v)
 
     def alloc_draw_command(self) -> "DrawCommand":
         cur = self._u32(G_DRAW_CURSOR)

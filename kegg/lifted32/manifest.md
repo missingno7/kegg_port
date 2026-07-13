@@ -122,6 +122,7 @@ docs/kegg/control_flow.md.
 | 0x11eda0 | swap_ball_y — the ball-Y double-buffer flip | 17 | **RECOVERED** → `kegg/recovered/physics.py` | 390/390 oracle-exact over the demo |
 | 0x11b5df | rects_overlap — AABB collision-overlap test (−1 hit / 0 miss) | 35 | **RECOVERED** → `kegg/recovered/physics.py` | 2364/2364 oracle-exact over the demo |
 | 0x11b17e | step_sequence — {value,count} record stepper (advance/reload, negative count loops back) | 42 | **RECOVERED** → `kegg/recovered/sequence.py` | 2337/2337 oracle-exact over the demo |
+| 0x11c886 | swap_display_pages — the per-frame page flip (dbl-buffer offset swap) | 20 | **RECOVERED** → `kegg/recovered/present.py` | 390/390 oracle-exact over the demo |
 
 The demo (390 frames, 170 events) drives 0x11eda0/0x11fbc0/0x11fc1e once per
 frame — a rich physics corpus.  Recovering it surfaced an interrupt-atomicity
@@ -130,11 +131,17 @@ with async IRQ delivery suppressed); fixed in `pm_verification` — see the
 control_flow.md verifier note.
 
 A **call-target census** over the demo's first 120 frames ranks the hot
-gameplay leaves (0-call, 0-INT — the recover-as-pure kind).  Recovered from
-it so far: 0x11b5df (rects_overlap, 1303 calls/120f), 0x11b17e (step_sequence,
-1161 calls/120f).  Next hot leaves: **0x123889** (61 ins), 0x123f76 (21 ins),
-0x125527 (48 ins), 0x121494 (6 ins).  (0x123fad/0x124771 are port in/out
-helpers — hardware, not gameplay.)  The once-per-frame dispatchers 0x11fbc0/0x11fc1e call
+gameplay leaves (0-call, 0-INT, no port-I/O — the recover-as-pure kind).
+Recovered from it: 0x11b5df (rects_overlap), 0x11b17e (step_sequence), 0x11c886
+(swap_display_pages).  The 0x12xxxx "leaves" are render/IO — 0x123889 (VGA GC
+programming), 0x123f76 (Watcom memcpy), 0x121494 (DMA-mask OUT), 0x123fad/
+0x124771 (port in/out) — hardware, not gameplay logic.  Remaining **pure
+gameplay leaves** still reached in this demo (0x11xxxx, no calls/int/port):
+0x11b57a (37 ins), 0x119e54 (44 ins), 0x11fe6a (46 ins), 0x117e62 (81 ins),
+0x115381 (238 ins, the biggest), 0x11b541 (21 ins), 0x119053 (71), 0x118fce
+(35).  The core ball physics (integration/bounce/brick collision behind the
+0x112c72/0x11353f handlers) stays gated shut in this demo window — needs a
+capture with the ball actively bouncing to reach.  The once-per-frame dispatchers 0x11fbc0/0x11fc1e call
 0x11fa42 and the ball handlers [0x147b3f]=0x112c72 / [0x147b43]=0x11353f;
 those are gated shut in this demo's window, so recover the flat leaves first.
 0x11ee65 (390/f) is VGA display-start programming (CRTC 0x0c/0x0d via the

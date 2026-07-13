@@ -14,6 +14,7 @@ from kegg.bridge.ball_state import BallState, B_Y_TEMP
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
 from kegg.recovered.physics import swap_ball_y, rects_overlap
+from kegg.recovered.sequence import step_sequence
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
@@ -21,6 +22,7 @@ LOAD_OBJ = 0x1195EE
 SPRITE_BOUNDS = 0x118004
 BALL_Y_SWAP = 0x11EDA0
 RECTS_OVERLAP = 0x11B5DF
+STEP_SEQ = 0x11B17E
 
 
 def anim_timers_118345(cpu):
@@ -204,6 +206,54 @@ def rects_overlap_11b5df(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def _s32(v):
+    return v - 0x100000000 if v & 0x80000000 else v
+
+
+def step_sequence_11b17e(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    counter_ptr = mem.r32(e + 4)           # arg0
+    cursor_ptr = mem.r32(e + 8)            # arg1
+    edx = r[2]                             # unchanged on the early-out path
+
+    # Mirror the ASM branch-by-branch so eax/edx/flags and the memory writes
+    # all match; the clean statement of the same rule is recovered.sequence.
+    cnt = (mem.r32(counter_ptr) - 1) & 0xFFFFFFFF     # dec [arg0]
+    mem.w32(counter_ptr, cnt)
+    if _s32(cnt) > 0:
+        cpu._flags_sub(cnt, 0, cnt, 32)               # cmp [arg0],0 (jg)
+    else:
+        cur_prev = mem.r32(cursor_ptr)
+        cursor = (cur_prev + 8) & 0xFFFFFFFF          # add [arg1],8
+        mem.w32(cursor_ptr, cursor)
+        cpu._flags_add(cur_prev, 8, cur_prev + 8, 32)
+        cnt1 = mem.r32(cursor + 4)                    # [arg0] = [[arg1]+4]
+        mem.w32(counter_ptr, cnt1)
+        edx = cnt1
+        if _s32(cnt1) >= 0:
+            # test eax,eax preserves AF -> the surviving AF is the add's above
+            cpu._flags_logic(cnt1, 32)                # test eax,eax (jge)
+        else:
+            shifted = (cnt1 << 3) & 0xFFFFFFFF        # edx = [arg0]<<3
+            cur_before = mem.r32(cursor_ptr)
+            cur2_raw = cur_before + shifted
+            mem.w32(cursor_ptr, cur2_raw & 0xFFFFFFFF)   # add [arg1],edx
+            cpu._flags_add(cur_before, shifted, cur2_raw, 32)
+            cnt2 = mem.r32((cur2_raw & 0xFFFFFFFF) + 4)   # [arg0] = [[arg1]+4]
+            mem.w32(counter_ptr, cnt2)
+            edx = cnt2
+
+    result = mem.r32(mem.r32(cursor_ptr))             # eax = [[arg1]]
+    r[0] = result
+    r[2] = edx
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    mem.w32(e - 20, result)                           # [ebp-4] frame local
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -217,4 +267,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[BALL_Y_SWAP] = "swap_ball_y_11eda0"
     cpu.replacement_hooks[RECTS_OVERLAP] = rects_overlap_11b5df
     cpu.hook_names[RECTS_OVERLAP] = "rects_overlap_11b5df"
-    return 6
+    cpu.replacement_hooks[STEP_SEQ] = step_sequence_11b17e
+    cpu.hook_names[STEP_SEQ] = "step_sequence_11b17e"
+    return 7

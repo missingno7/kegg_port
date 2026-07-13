@@ -121,6 +121,7 @@ docs/kegg/control_flow.md.
 |---|---|---|---|---|
 | 0x11eda0 | swap_ball_y — the ball-Y double-buffer flip | 17 | **RECOVERED** → `kegg/recovered/physics.py` | 390/390 oracle-exact over the demo |
 | 0x11b5df | rects_overlap — AABB collision-overlap test (−1 hit / 0 miss) | 35 | **RECOVERED** → `kegg/recovered/physics.py` | 2364/2364 oracle-exact over the demo |
+| 0x11b17e | step_sequence — {value,count} record stepper (advance/reload, negative count loops back) | 42 | **RECOVERED** → `kegg/recovered/sequence.py` | 2337/2337 oracle-exact over the demo |
 
 The demo (390 frames, 170 events) drives 0x11eda0/0x11fbc0/0x11fc1e once per
 frame — a rich physics corpus.  Recovering it surfaced an interrupt-atomicity
@@ -130,9 +131,10 @@ control_flow.md verifier note.
 
 A **call-target census** over the demo's first 120 frames ranks the hot
 gameplay leaves (0-call, 0-INT — the recover-as-pure kind).  Recovered from
-it so far: 0x11b5df (rects_overlap, 1303 calls/120f).  Next hot leaves:
-**0x11b17e** (1161 calls, 42 ins), 0x123889 (61 ins), 0x123f76 (21 ins),
-0x125527 (48 ins).  The once-per-frame dispatchers 0x11fbc0/0x11fc1e call
+it so far: 0x11b5df (rects_overlap, 1303 calls/120f), 0x11b17e (step_sequence,
+1161 calls/120f).  Next hot leaves: **0x123889** (61 ins), 0x123f76 (21 ins),
+0x125527 (48 ins), 0x121494 (6 ins).  (0x123fad/0x124771 are port in/out
+helpers — hardware, not gameplay.)  The once-per-frame dispatchers 0x11fbc0/0x11fc1e call
 0x11fa42 and the ball handlers [0x147b3f]=0x112c72 / [0x147b43]=0x11353f;
 those are gated shut in this demo's window, so recover the flat leaves first.
 0x11ee65 (390/f) is VGA display-start programming (CRTC 0x0c/0x0d via the

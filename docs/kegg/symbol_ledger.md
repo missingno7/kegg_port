@@ -40,6 +40,7 @@ RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 | 0x118004 | `setup_sprite_rect(out, def)` — place sprite def as current object (calls 0x1195ee), fold signed x/y offsets into out rect, derive right/bottom edges (w/h − 2) | VERIFIED | `kegg/recovered/anim.py`; single-call + 60/60 full-run oracle-exact |
 | 0x11eda0 | `swap_ball_y` — flip the ball-Y double buffer ([0x147b20]↔[0x147b22] via scratch [0x147b16]) | VERIFIED | `kegg/recovered/physics.py`; 390/390 oracle-exact over the level-2 demo |
 | 0x11b5df | `rects_overlap(a,b)` — AABB overlap test (4 signed edge compares → −1 hit / 0 miss); the collision primitive | VERIFIED | `kegg/recovered/physics.py`; 2364/2364 oracle-exact over the level-2 demo |
+| 0x11b17e | `step_sequence(counter,cursor)` — tick a `{value,count}` record sequence; advance/reload on expiry, negative count = relative loop-back | VERIFIED | `kegg/recovered/sequence.py`; 2337/2337 oracle-exact over the level-2 demo |
 | 0x147b16/18/20/22 | ball scratch-Y / X / Y-front / Y-back (16-bit) | RECOVERED | `kegg/bridge/ball_state.py`; 0x11eda0 + control_flow.md |
 | 0x14e148 | live cell count (2× sprite count) | RECOVERED | data_model.md |
 | 0x14e14c | frame tick | RECOVERED | ^ |

@@ -51,6 +51,40 @@ def test_swap_ball_y_pure():
     assert _r16(d, B_Y_TEMP) == 111    # scratch left holding the old front Y
 
 
+def test_step_sequence_pure():
+    from kegg.recovered.sequence import step_sequence
+    d = bytearray(0x4000)
+    # three 8-byte {value,count} records; rec2's count is a -2 loop-back to rec0
+    for addr, val, cnt in ((0x1000, 100, 5), (0x1008, 200, 3), (0x1010, 300, -2)):
+        _w16(d, addr, val & 0xFFFF)
+        d[addr:addr + 4] = (val & 0xFFFFFFFF).to_bytes(4, "little")
+        d[addr + 4:addr + 8] = (cnt & 0xFFFFFFFF).to_bytes(4, "little")
+    CUR, CNT = 0x2000, 0x2004
+
+    def setup(cursor, counter):
+        d[CUR:CUR + 4] = cursor.to_bytes(4, "little")
+        d[CNT:CNT + 4] = counter.to_bytes(4, "little")
+
+    def r32(a):
+        v = int.from_bytes(d[a:a + 4], "little")
+        return v - 0x100000000 if v & 0x80000000 else v
+
+    # path A: countdown not expired -> just decrements, returns current value
+    setup(0x1000, 5)
+    assert step_sequence(d, CNT, CUR) == 100
+    assert r32(CNT) == 4 and r32(CUR) == 0x1000
+
+    # path B: expires -> advance to rec1, reload its (positive) count
+    setup(0x1000, 1)
+    assert step_sequence(d, CNT, CUR) == 200
+    assert r32(CUR) == 0x1008 and r32(CNT) == 3
+
+    # path C: expires -> rec2's count is negative -> loop back 2 records to rec0
+    setup(0x1008, 1)
+    assert step_sequence(d, CNT, CUR) == 100
+    assert r32(CUR) == 0x1000 and r32(CNT) == 5
+
+
 DEMO = ROOT / "artifacts" / "demos" / "demo_167343187"
 
 

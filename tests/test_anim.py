@@ -10,11 +10,44 @@ for p in (str(ROOT), str(ROOT / "dos_re")):
         sys.path.insert(0, p)
 
 from kegg.bridge.game_state import GameState, OBJ_STRIDE, G_TICK, G_COUNT, G_TABLE  # noqa: E402
-from kegg.recovered.anim import update_anim_timers  # noqa: E402
+from kegg.recovered.anim import (update_anim_timers, update_frame_timers,  # noqa: E402
+                                 T2_TABLE, T2_COUNT, T2_STEP, T2_GATE_PTR,
+                                 T2_GLOBAL_CTR)
 
 
 def _w32(d, a, v):
     d[a:a + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+
+def _r32(d, a):
+    return int.from_bytes(d[a:a + 4], "little")
+
+
+def test_update_frame_timers_pure():
+    d = bytearray(0x200000)
+    _w32(d, T2_GATE_PTR, 0x120000)      # gate points here; word there is 0 -> tick
+    d[T2_GLOBAL_CTR:T2_GLOBAL_CTR + 2] = (10).to_bytes(2, "little")
+    _w32(d, T2_COUNT, 2)
+    _w32(d, T2_STEP, 30)
+    # record 0: acc 90 + 30 = 120 >= threshold 100 -> wrap to 20, counter++
+    _w32(d, T2_TABLE + 0, 7)            # counter
+    _w32(d, T2_TABLE + 4, 100)          # threshold
+    _w32(d, T2_TABLE + 8, 90)           # accumulator
+    # record 1: acc 10 + 30 = 40 < threshold 100 -> no wrap
+    _w32(d, T2_TABLE + 12 + 0, 3)
+    _w32(d, T2_TABLE + 12 + 4, 100)
+    _w32(d, T2_TABLE + 12 + 8, 10)
+
+    update_frame_timers(d)
+
+    assert int.from_bytes(d[T2_GLOBAL_CTR:T2_GLOBAL_CTR + 2], "little") == 11  # ticked
+    assert _r32(d, T2_TABLE + 8) == 20 and _r32(d, T2_TABLE + 0) == 8          # rec0 wrapped
+    assert _r32(d, T2_TABLE + 12 + 8) == 40 and _r32(d, T2_TABLE + 12 + 0) == 3  # rec1 held
+
+    # gate word non-zero -> no global tick
+    d[0x120000:0x120002] = (1).to_bytes(2, "little")
+    update_frame_timers(d)
+    assert int.from_bytes(d[T2_GLOBAL_CTR:T2_GLOBAL_CTR + 2], "little") == 11
 
 
 def test_update_anim_timers_pure():

@@ -24,6 +24,48 @@ def update_anim_timers(state) -> None:
             obj.accumulator = obj.accumulator + obj.step
 
 
+# Second per-frame timer table (0x119e54): 12-byte records at 0x14e168 with
+# {counter:+0, threshold:+4, accumulator:+8}, count in the word [0x1473cc],
+# advanced by the dword step [0x1473ac].  A word counter [0x14e1be] ticks once
+# per frame while the word at [[0x1473b4]] is zero.
+T2_TABLE = 0x14E168
+T2_COUNT = 0x1473CC
+T2_STEP = 0x1473AC
+T2_GLOBAL_CTR = 0x14E1BE
+T2_GATE_PTR = 0x1473B4
+
+
+def update_frame_timers(d: bytearray) -> None:
+    """Advance the second animation-timer table (recovered from 0x119e54).
+
+    Ticks the gated global counter, then for each record accumulates the step
+    and, once the accumulator reaches the record's threshold (unsigned), wraps
+    it down and bumps the record's counter.
+    """
+    def r32(a):
+        return int.from_bytes(d[a:a + 4], "little")
+
+    def w32(a, v):
+        d[a:a + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+    def r16(a):
+        return int.from_bytes(d[a:a + 2], "little")
+
+    gate = r32(T2_GATE_PTR)
+    if r16(gate) == 0:
+        d[T2_GLOBAL_CTR:T2_GLOBAL_CTR + 2] = ((r16(T2_GLOBAL_CTR) + 1) & 0xFFFF).to_bytes(2, "little")
+    count = r16(T2_COUNT)
+    step = r32(T2_STEP)
+    for i in range(count):
+        rec = T2_TABLE + i * 12
+        acc = (r32(rec + 8) + step) & 0xFFFFFFFF
+        w32(rec + 8, acc)
+        thr = r32(rec + 4)
+        if acc >= thr:                     # unsigned; ASM `jb` skips the wrap
+            w32(rec + 8, (acc - thr) & 0xFFFFFFFF)
+            w32(rec + 0, (r32(rec + 0) + 1) & 0xFFFFFFFF)
+
+
 def load_current_object(state) -> None:
     """Latch the current sprite definition's geometry into the working globals
     the draw path reads (recovered from 0x1195ee): width, height, and the x/y

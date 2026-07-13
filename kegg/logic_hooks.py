@@ -12,7 +12,9 @@ from kegg.bridge.game_state import (GameState, ObjectView, SpriteView, Rect,
                                      G_CUR_OBJ, G_CUR_Y_OFF, G_PAGE0)
 from kegg.bridge.ball_state import BallState, B_Y_TEMP
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
-                                  load_current_object, setup_sprite_rect, _sar4)
+                                  load_current_object, setup_sprite_rect, _sar4,
+                                  update_frame_timers, T2_TABLE, T2_COUNT,
+                                  T2_STEP, T2_GATE_PTR, T2_GLOBAL_CTR)
 from kegg.recovered.physics import swap_ball_y, rects_overlap
 from kegg.recovered.sequence import step_sequence
 from kegg.recovered.present import swap_display_pages, set_clip_rect, set_draw_params
@@ -29,6 +31,7 @@ PAGE_SWAP = 0x11C886
 SET_CLIP = 0x11B57A
 SET_DRAW_PARAMS = 0x11B541
 SPAWN_EFFECT = 0x117E62
+FRAME_TIMERS = 0x119E54
 
 
 def anim_timers_118345(cpu):
@@ -358,6 +361,48 @@ def spawn_effect_117e62(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def update_frame_timers_119e54(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    d = mem.data
+
+    def r32(a):
+        return int.from_bytes(d[a:a + 4], "little")
+
+    def w32(a, v):
+        d[a:a + 4] = (v & 0xFFFFFFFF).to_bytes(4, "little")
+
+    def r16(a):
+        return int.from_bytes(d[a:a + 2], "little")
+
+    # Replicate the routine so eax/edx/flags and the memory writes all match.
+    gate = r32(T2_GATE_PTR)
+    if r16(gate) == 0:
+        d[T2_GLOBAL_CTR:T2_GLOBAL_CTR + 2] = ((r16(T2_GLOBAL_CTR) + 1) & 0xFFFF).to_bytes(2, "little")
+    count = r16(T2_COUNT)
+    step = r32(T2_STEP)
+    edx = r[2]                              # edx = entry edx if the table is empty
+    for i in range(count):
+        rec = T2_TABLE + i * 12
+        edx = step                          # `mov edx, [step]`
+        acc = (r32(rec + 8) + step) & 0xFFFFFFFF
+        w32(rec + 8, acc)
+        thr = r32(rec + 4)
+        if acc >= thr:                      # `jb` NOT taken -> wrap
+            edx = thr                       # `mov edx, [rec.threshold]`
+            w32(rec + 8, (acc - thr) & 0xFFFFFFFF)
+            w32(rec + 0, (r32(rec + 0) + 1) & 0xFFFFFFFF)
+
+    r[0] = count                            # eax = [ebp-4] = i = count
+    r[2] = edx & 0xFFFFFFFF
+    cpu._flags_sub(count & 0xFFFF, count & 0xFFFF, 0, 16)   # final `cmp ax, count`
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    mem.w32(e - 20, count)                  # [ebp-4] frame local
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -381,4 +426,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[SET_DRAW_PARAMS] = "set_draw_params_11b541"
     cpu.replacement_hooks[SPAWN_EFFECT] = spawn_effect_117e62
     cpu.hook_names[SPAWN_EFFECT] = "spawn_effect_117e62"
-    return 11
+    cpu.replacement_hooks[FRAME_TIMERS] = update_frame_timers_119e54
+    cpu.hook_names[FRAME_TIMERS] = "update_frame_timers_119e54"
+    return 12

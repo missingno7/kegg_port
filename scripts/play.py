@@ -37,6 +37,7 @@ def main(argv=None) -> int:
         description=__doc__.splitlines()[0],
         artifacts_dir=ROOT / "artifacts",
         sound_blaster=(0x210, 7, 1),       # KE's config probes DSP base $210
+        frame_tick_addr=0x119D40,          # per-frame update entry (demo clock)
     )
 
 

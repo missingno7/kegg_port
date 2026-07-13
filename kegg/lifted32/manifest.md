@@ -105,3 +105,11 @@ docs/kegg/control_flow.md.
 
 NOT_REACHED here (need a ball-in-flight snapshot): 0x11fb92 (launch),
 0x11fbc0, 0x11fc1e, 0x11fe6a, and the physics/collision they reach.
+
+
+## Ball physics layer (2026-07-13) — verified from snap_157569453
+
+The launched-ball snapshot reaches the ball-active subsystems; ORACLE_PASSING
+x8: 0x11fbc0, 0x11fc1e, 0x11fe6a (were NOT_REACHED before), + 0x11fd3b.  Ball
+state map + handlers (0x112c72, 0x11353f, the Y-swap leaf 0x11eda0) in
+docs/kegg/control_flow.md.

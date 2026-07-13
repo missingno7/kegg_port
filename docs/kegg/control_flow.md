@@ -76,3 +76,27 @@ NOT_REACHED and cannot be verified here.  A `scripts/play.py` snapshot (F12)
 taken **while the ball is bouncing** (and one mid-brick-hit) would exercise
 and unlock them.  Until then the game-rule recovery is capped at the input/
 dispatch layer above.
+
+
+## Ball-in-flight state (from snap_157569453 — the launched-ball capture)
+
+With the ball launched, [0x147b34] = 0xBB, so the ball-active subsystems run
+and now VERIFY ORACLE_PASSING (they were NOT_REACHED in the ball-on-paddle
+snapshot): 0x11fbc0 (0x01), 0x11fc1e (0x02), 0x11fe6a (0x80), plus 0x11fd3b/
+0x11fd7b.  The launch trigger 0x11fb92 (0x04) is now inactive (already fired).
+
+### Ball state and handlers
+
+- `0x11fbc0` (bit 0x01) dispatches the ball through `[0x147b3f]` = **0x112c72**
+  and `[0x147b43]` = **0x11353f** (the two ball-state handlers).
+- Ball position globals: **[0x147b18]** (X), **[0x147b20]/[0x147b22]** (Y,
+  double-buffered), **[0x147b14]/[0x147b16]** (scratch/prev).  0x11353f draws
+  the ball via `0x122f9c` at ([0x147b18], [0x147b20]) and ([0x147b18],
+  [0x147b22]).
+- **0x11eda0** — a clean 17-instruction leaf that swaps the two ball-Y slots
+  ([0x147b20] <-> [0x147b22] via temp [0x147b16]): the Y double-buffer flip.
+  The velocity integration / wall+brick collision is the larger routine above
+  it in the 0x112c72 / 0x11fc1e chain (next to locate precisely).
+
+The physics LAYER is now reached and oracle-verifiable from this snapshot —
+recovering the integration/collision as clean source is the next slice.

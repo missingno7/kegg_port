@@ -27,6 +27,15 @@ from dos_re.pm_player import main as pm_main   # noqa: E402
 from kegg.runtime import create_game_runtime   # noqa: E402
 
 
+def _install_hooks(cpu):
+    """The recovered hooks, for the --snapshot resume path (create_game_runtime
+    installs them on a fresh boot)."""
+    from kegg.render_hooks import install_render_hooks
+    from kegg.logic_hooks import install_logic_hooks
+    install_render_hooks(cpu)
+    install_logic_hooks(cpu)
+
+
 def main(argv=None) -> int:
     return pm_main(
         argv,
@@ -38,6 +47,7 @@ def main(argv=None) -> int:
         artifacts_dir=ROOT / "artifacts",
         sound_blaster=(0x210, 7, 1),       # KE's config probes DSP base $210
         frame_tick_addr=0x119D40,          # per-frame update entry (demo clock)
+        install_hooks=_install_hooks,      # re-install on --snapshot resume
     )
 
 

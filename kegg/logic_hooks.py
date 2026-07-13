@@ -10,13 +10,16 @@ from __future__ import annotations
 from kegg.bridge.game_state import (GameState, ObjectView, SpriteView,
                                      OBJ_STRIDE, SPRITE_STRIDE, G_TABLE,
                                      G_CUR_OBJ, G_CUR_Y_OFF)
+from kegg.bridge.ball_state import BallState, B_Y_TEMP
 from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
+from kegg.recovered.physics import swap_ball_y
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
 LOAD_OBJ = 0x1195EE
 SPRITE_BOUNDS = 0x118004
+BALL_Y_SWAP = 0x11EDA0
 
 
 def anim_timers_118345(cpu):
@@ -141,6 +144,24 @@ def sprite_bounds_118004(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def swap_ball_y_11eda0(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    state = BallState(mem.data)
+    swap_ball_y(state)                     # temp=y0; y0=y1; y1=temp
+
+    # Exit registers: the epilogue restores ebx/esi/edi/ebp; only eax's low
+    # word is touched (the final `mov ax,[0x147b16]` — the scratch, now holding
+    # the old front Y).  The prologue's `sub esp,0` is the only flag op.
+    r[0] = (r[0] & 0xFFFF0000) | mem.r16(B_Y_TEMP)
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    v = (e - 16) & 0xFFFFFFFF
+    cpu._flags_sub(v, 0, v, 32)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -150,4 +171,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[LOAD_OBJ] = "load_object_1195ee"
     cpu.replacement_hooks[SPRITE_BOUNDS] = sprite_bounds_118004
     cpu.hook_names[SPRITE_BOUNDS] = "sprite_bounds_118004"
-    return 4
+    cpu.replacement_hooks[BALL_Y_SWAP] = swap_ball_y_11eda0
+    cpu.hook_names[BALL_Y_SWAP] = "swap_ball_y_11eda0"
+    return 5

@@ -114,3 +114,15 @@ The launched-ball snapshot reaches the ball-active subsystems; ORACLE_PASSING
 x8: 0x11fbc0, 0x11fc1e, 0x11fe6a (were NOT_REACHED before), + 0x11fd3b.  Ball
 state map + handlers (0x112c72, 0x11353f, the Y-swap leaf 0x11eda0) in
 docs/kegg/control_flow.md.
+
+### Recovered (2026-07-13, from the level-2 tens-of-balls demo demo_167343187)
+
+| Entry | Working name | Insts | Status | Evidence |
+|---|---|---|---|---|
+| 0x11eda0 | swap_ball_y — the ball-Y double-buffer flip | 17 | **RECOVERED** → `kegg/recovered/physics.py` | 390/390 oracle-exact over the demo |
+
+The demo (390 frames, 170 events) drives 0x11eda0/0x11fbc0/0x11fc1e once per
+frame — a rich physics corpus.  Recovering it surfaced an interrupt-atomicity
+gap in the verifier (a hook is atomic, so the oracle must re-run the routine
+with async IRQ delivery suppressed); fixed in `pm_verification` — see the
+control_flow.md verifier note.  0x11fbc0/0x11fc1e are the next physics slices.

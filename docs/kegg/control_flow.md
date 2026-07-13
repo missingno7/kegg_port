@@ -95,8 +95,21 @@ snapshot): 0x11fbc0 (0x01), 0x11fc1e (0x02), 0x11fe6a (0x80), plus 0x11fd3b/
   [0x147b22]).
 - **0x11eda0** — a clean 17-instruction leaf that swaps the two ball-Y slots
   ([0x147b20] <-> [0x147b22] via temp [0x147b16]): the Y double-buffer flip.
-  The velocity integration / wall+brick collision is the larger routine above
-  it in the 0x112c72 / 0x11fc1e chain (next to locate precisely).
+  **RECOVERED** as `kegg/recovered/physics.swap_ball_y` (bridge:
+  `kegg/bridge/ball_state.py`), 390/390 oracle-exact over the level-2
+  tens-of-balls demo.  The velocity integration / wall+brick collision is the
+  larger routine above it in the 0x112c72 / 0x11fc1e chain (next to locate).
+
+  > **Verifier note (interrupt-atomicity):** a replacement hook runs
+  > atomically (one interpreter instruction), so no hardware IRQ can land
+  > mid-routine; the oracle re-runs the real instructions and *can* cross the
+  > interpreter's 16-instruction IRQ-poll boundary, delivering a pending SB
+  > IRQ whose ISR mutates memory the hook never touched — a spurious
+  > divergence.  `PMHookVerifier` now suppresses async IRQ delivery on the
+  > oracle (`asm_cpu.pending_irq = None`) so it re-runs the routine atomically
+  > too; the IRQ is still delivered by the main loop at the next step for both,
+  > as on real hardware.  This is what let 0x11eda0 (an IF=1, once-per-frame
+  > routine that sits right on the SB block boundary) verify cleanly.
 
 The physics LAYER is now reached and oracle-verifiable from this snapshot —
 recovering the integration/collision as clean source is the next slice.

@@ -15,7 +15,7 @@ from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
 from kegg.recovered.physics import swap_ball_y, rects_overlap
 from kegg.recovered.sequence import step_sequence
-from kegg.recovered.present import swap_display_pages
+from kegg.recovered.present import swap_display_pages, set_clip_rect
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
@@ -25,6 +25,7 @@ BALL_Y_SWAP = 0x11EDA0
 RECTS_OVERLAP = 0x11B5DF
 STEP_SEQ = 0x11B17E
 PAGE_SWAP = 0x11C886
+SET_CLIP = 0x11B57A
 
 
 def anim_timers_118345(cpu):
@@ -274,6 +275,40 @@ def swap_display_pages_11c886(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def set_clip_rect_11b57a(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    # args: x0=[e+4], y0=[e+8], x1=[e+0xc], y1=[e+0x10]
+    x0 = mem.r32(e + 4); y0 = mem.r32(e + 8)
+    x1 = mem.r32(e + 0xC); y1 = mem.r32(e + 0x10)
+    y0_orig, y1_orig = y0, y1              # the 2nd `cmp` (flags) sees these
+
+    tmp_written = False
+    tmp_val = 0
+    if _s32(x0) > _s32(x1):                # cmp x0,x1 ; jle skips
+        tmp_val = x0; tmp_written = True
+        mem.w32(e + 4, x1); mem.w32(e + 0xC, x0)   # swap the arg slots
+        x0, x1 = x1, x0
+    if _s32(y0) > _s32(y1):
+        tmp_val = y0; tmp_written = True
+        mem.w32(e + 8, y1); mem.w32(e + 0x10, y0)
+        y0, y1 = y1, y0
+
+    # store the normalized clip rect through the recovered rule
+    st = GameState(mem.data)
+    st.clip_x0 = x0; st.clip_x1 = x1; st.clip_y0 = y0; st.clip_y1 = y1
+
+    r[0] = y1 & 0xFFFFFFFF                 # eax = final [ebp+0x20] (arg3 slot)
+    cpu._flags_sub(y0_orig, y1_orig, y0_orig - y1_orig, 32)   # 2nd `cmp`
+
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    if tmp_written:                        # [ebp-4] is only written on a swap
+        mem.w32(e - 20, tmp_val)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -291,4 +326,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[STEP_SEQ] = "step_sequence_11b17e"
     cpu.replacement_hooks[PAGE_SWAP] = swap_display_pages_11c886
     cpu.hook_names[PAGE_SWAP] = "swap_display_pages_11c886"
-    return 8
+    cpu.replacement_hooks[SET_CLIP] = set_clip_rect_11b57a
+    cpu.hook_names[SET_CLIP] = "set_clip_rect_11b57a"
+    return 9

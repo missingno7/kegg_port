@@ -42,6 +42,7 @@ RECOVERED → ASM_MATCHED → VERIFIED → CANONICAL.
 | 0x11b5df | `rects_overlap(a,b)` — AABB overlap test (4 signed edge compares → −1 hit / 0 miss); the collision primitive | VERIFIED | `kegg/recovered/physics.py`; 2364/2364 oracle-exact over the level-2 demo |
 | 0x11b17e | `step_sequence(counter,cursor)` — tick a `{value,count}` record sequence; advance/reload on expiry, negative count = relative loop-back | VERIFIED | `kegg/recovered/sequence.py`; 2337/2337 oracle-exact over the level-2 demo |
 | 0x11c886 | `swap_display_pages` — per-frame page flip ([0x14e2d4]↔[0x14e2d8] via scratch [0x14e2e8]) | VERIFIED | `kegg/recovered/present.py`; 390/390 oracle-exact over the level-2 demo |
+| 0x11b57a | `set_clip_rect(x0,y0,x1,y1)` — normalize a two-corner box (signed order) → clip globals [0x14e219..0x14e225] | VERIFIED | `kegg/recovered/present.py`; 390/390 oracle-exact over the level-2 demo |
 | 0x147b16/18/20/22 | ball scratch-Y / X / Y-front / Y-back (16-bit) | RECOVERED | `kegg/bridge/ball_state.py`; 0x11eda0 + control_flow.md |
 | 0x14e148 | live cell count (2× sprite count) | RECOVERED | data_model.md |
 | 0x14e14c | frame tick | RECOVERED | ^ |

@@ -47,3 +47,24 @@ are confirmed by a couple more routines.
 ## Struct size: 0x18 (24 bytes) — confirmed by 0x118345's `add [ebp-4],0x18` stride.
 
 First recovered logic: `update_anim_timers` (0x118345) -> `kegg/recovered/anim.py` over `kegg/bridge/game_state.py` (GameState/ObjectView).  79,853 calls verified byte-exact.
+
+
+## RESOLVED: cells vs sprites (the 0x18 / 0x30 stride)
+
+The object table holds `[0x14e148]` **animation cells** of 0x18 bytes each.
+Cells are **paired** into **sprites** of 0x30 bytes (even + odd cell) — the odd
+cells observed are identical templates.  Two views of the same bytes:
+
+- **anim (0x118345)** walks all `count` cells (0x18 stride), advancing each
+  cell's accumulator (+0x08) toward its threshold (+0x10).
+- **draw-list (0x1183b1)** walks `count>>1` sprites (0x30 stride), reading each
+  sprite's position (+0x14) and its two cells' accumulators (+0x08 = coord_a,
+  +0x20 = coord_b) as the drawn W/H (each >>4).
+
+A sprite's on-screen size/position is driven by its two cells' running
+accumulators — an animated-coordinate (scroll/zoom) system.  Draw command
+(10 bytes at [0x14e2ec], cursor += 0xa): dword X (world_x + position),
+word W (coord_a>>4), word H (coord_b>>4), word flags(=0).
+
+RECOVERED: update_anim_timers (0x118345) + build_draw_list (0x1183b1) ->
+kegg/recovered/anim.py over kegg/bridge/game_state.py.

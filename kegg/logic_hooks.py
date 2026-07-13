@@ -7,10 +7,12 @@ verifies byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
 """
 from __future__ import annotations
 
-from kegg.bridge.game_state import GameState, ObjectView, OBJ_STRIDE, G_TABLE
-from kegg.recovered.anim import update_anim_timers
+from kegg.bridge.game_state import (GameState, ObjectView, SpriteView,
+                                     OBJ_STRIDE, SPRITE_STRIDE, G_TABLE)
+from kegg.recovered.anim import update_anim_timers, build_draw_list, _sar4
 
 ANIM = 0x118345
+DRAW_LIST = 0x1183B1
 
 
 def anim_timers_118345(cpu):
@@ -51,7 +53,38 @@ def anim_timers_118345(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def build_draw_list_1183b1(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    entry_edx = r[2]
+    state = GameState(mem.data)
+    table = state._u32(G_TABLE)
+    half = state.sprite_count              # cell count >> 1
+
+    build_draw_list(state)                 # the recovered rule fills the draw list
+
+    # Exit registers: eax = the sprite index at loop end (== half); edx = the
+    # last sprite's coord_b>>4 (sign-extended, full 32-bit) or the entry edx if
+    # no sprites; flags from the loop's final `cmp half, index`.
+    if half > 0:
+        last = SpriteView(mem.data, table + (half - 1) * SPRITE_STRIDE)
+        r[2] = _sar4(last.coord_b) & 0xFFFFFFFF
+    else:
+        r[2] = entry_edx
+    r[0] = half & 0xFFFFFFFF
+    cpu._flags_sub(half & 0xFFFFFFFF, half & 0xFFFFFFFF, 0, 32)
+
+    e = r[4]
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    mem.w32(e - 20, (table + half * SPRITE_STRIDE) & 0xFFFFFFFF)
+    mem.w32(e - 24, half & 0xFFFFFFFF)
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
-    return 1
+    cpu.replacement_hooks[DRAW_LIST] = build_draw_list_1183b1
+    cpu.hook_names[DRAW_LIST] = "build_draw_list_1183b1"
+    return 2

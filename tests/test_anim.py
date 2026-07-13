@@ -59,3 +59,36 @@ def test_anim_hook_verifies_against_oracle():
     v.config.samples = None
     rt.cpu.run(3_000_000)
     assert v.total_verified >= 50
+
+
+def test_build_draw_list_pure():
+    from kegg.bridge.game_state import (SPRITE_STRIDE, G_COUNT, G_TABLE,
+                                        G_WORLD_X, G_DRAW_CURSOR)
+    from kegg.recovered.anim import build_draw_list
+    d = bytearray(0x200000)
+    table = 0x101000
+    cursor = 0x120000
+    _w32(d, G_COUNT, 4)            # 4 cells -> 2 sprites
+    _w32(d, G_TABLE, table)
+    _w32(d, G_WORLD_X, 1000)
+    _w32(d, G_DRAW_CURSOR, cursor)
+    # sprite 0 (0x30): position +0x14, coord_a +0x08, coord_b +0x20
+    _w32(d, table + 0x14, 5)
+    _w32(d, table + 0x08, 0x160)      # >>4 = 0x16
+    _w32(d, table + 0x20, 0x320)      # >>4 = 0x32
+    # sprite 1 — NEGATIVE coord_b, exercising the arithmetic sar (regression:
+    # a naive re-signed sar shifts -18 toward -1e8 instead of -2)
+    _w32(d, table + SPRITE_STRIDE + 0x14, 7)
+    _w32(d, table + SPRITE_STRIDE + 0x08, 0x800)         # >>4 = 0x80
+    _w32(d, table + SPRITE_STRIDE + 0x20, (-18) & 0xFFFFFFFF)   # >>4 = -2 -> 0xFFFE
+
+    GameState(d)
+    build_draw_list(GameState(d))
+
+    def r16(a): return int.from_bytes(d[a:a + 2], "little")
+    def r32(a): return int.from_bytes(d[a:a + 4], "little")
+    # cmd 0 at cursor, cmd 1 at cursor+0xa; cursor advanced by 0x14
+    assert r32(cursor) == 1005 and r16(cursor + 4) == 0x16 and r16(cursor + 6) == 0x32
+    assert r32(cursor + 0xA) == 1007 and r16(cursor + 0xA + 4) == 0x80
+    assert r16(cursor + 0xA + 6) == 0xFFFE               # -2 low word
+    assert r32(G_DRAW_CURSOR) == cursor + 0x14

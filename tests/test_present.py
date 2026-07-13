@@ -8,8 +8,10 @@ for p in (str(ROOT), str(ROOT / "dos_re")):
         sys.path.insert(0, p)
 
 from kegg.bridge.game_state import (GameState, G_PAGE0, G_PAGE1, G_PAGE_TMP,  # noqa: E402
-                                    G_CLIP_X0, G_CLIP_X1, G_CLIP_Y0, G_CLIP_Y1)
-from kegg.recovered.present import swap_display_pages, set_clip_rect  # noqa: E402
+                                    G_CLIP_X0, G_CLIP_X1, G_CLIP_Y0, G_CLIP_Y1,
+                                    G_DRAW_PARAMS)
+from kegg.recovered.present import (swap_display_pages, set_clip_rect,  # noqa: E402
+                                    set_draw_params)
 
 
 def _w32(d, a, v):
@@ -50,3 +52,14 @@ def test_set_clip_rect_pure():
 
     set_clip_rect(GameState(d), 30, 40, 10, 20)     # both swap
     assert clip(d) == (10, 30, 20, 40)
+
+
+def test_set_draw_params_pure():
+    d = bytearray(0x200000)
+    set_draw_params(GameState(d), 0x11223344, 0x55667788, 0x9A, 0xDEADBEEF, 0xCAFEF00D)
+    b = G_DRAW_PARAMS
+    assert _r32(d, b) == 0x11223344          # +0
+    assert _r32(d, b + 4) == 0x55667788      # +4
+    assert d[b + 8] == 0x9A                  # +8 byte
+    assert _r32(d, b + 9) == 0xDEADBEEF      # +9 (unaligned)
+    assert _r32(d, b + 13) == 0xCAFEF00D     # +d

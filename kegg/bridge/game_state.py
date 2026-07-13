@@ -34,6 +34,11 @@ G_CLIP_X1 = 0x14E21D
 G_CLIP_Y0 = 0x14E221
 G_CLIP_Y1 = 0x14E225
 
+# The draw-parameter block (0x11b541 stores it) the 0x11bxxx anim/draw routines
+# read back: a PACKED {p0:dword, p1:dword, flag:byte, p3:dword, p4:dword} record
+# (the byte at +8 makes p3/p4 unaligned).
+G_DRAW_PARAMS = 0x14E200
+
 # The "current object" being processed, and its geometry latched for the draw
 # path (0x1195ee copies the sprite def's fields into these working globals).
 G_CUR_OBJ = 0x14E158       # pointer to the current sprite-definition struct
@@ -293,6 +298,16 @@ class GameState:
     @clip_y1.setter
     def clip_y1(self, v: int) -> None:
         self._w32(G_CLIP_Y1, v)
+
+    def write_draw_params(self, p0: int, p1: int, flag: int, p3: int, p4: int) -> None:
+        """Store the packed draw-parameter block at G_DRAW_PARAMS."""
+        d = self._d
+        b = G_DRAW_PARAMS
+        d[b:b + 4] = (p0 & 0xFFFFFFFF).to_bytes(4, "little")
+        d[b + 4:b + 8] = (p1 & 0xFFFFFFFF).to_bytes(4, "little")
+        d[b + 8] = flag & 0xFF
+        d[b + 9:b + 13] = (p3 & 0xFFFFFFFF).to_bytes(4, "little")
+        d[b + 13:b + 17] = (p4 & 0xFFFFFFFF).to_bytes(4, "little")
 
     def alloc_draw_command(self) -> "DrawCommand":
         cur = self._u32(G_DRAW_CURSOR)

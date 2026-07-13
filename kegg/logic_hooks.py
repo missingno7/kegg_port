@@ -15,7 +15,7 @@ from kegg.recovered.anim import (update_anim_timers, build_draw_list,
                                   load_current_object, setup_sprite_rect, _sar4)
 from kegg.recovered.physics import swap_ball_y, rects_overlap
 from kegg.recovered.sequence import step_sequence
-from kegg.recovered.present import swap_display_pages, set_clip_rect
+from kegg.recovered.present import swap_display_pages, set_clip_rect, set_draw_params
 
 ANIM = 0x118345
 DRAW_LIST = 0x1183B1
@@ -26,6 +26,7 @@ RECTS_OVERLAP = 0x11B5DF
 STEP_SEQ = 0x11B17E
 PAGE_SWAP = 0x11C886
 SET_CLIP = 0x11B57A
+SET_DRAW_PARAMS = 0x11B541
 
 
 def anim_timers_118345(cpu):
@@ -309,6 +310,25 @@ def set_clip_rect_11b57a(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def set_draw_params_11b541(cpu):
+    mem = cpu.mem
+    r = cpu.r
+    e = r[4]
+    # cdecl args: p0=[e+4], p1=[e+8], flag byte=[e+0xc], p3=[e+0x10], p4=[e+0x14]
+    set_draw_params(GameState(mem.data),
+                    mem.r32(e + 4), mem.r32(e + 8), mem.data[e + 0xC],
+                    mem.r32(e + 0x10), mem.r32(e + 0x14))
+
+    # eax = the last field loaded (arg4); edx/ecx untouched; the only flag op is
+    # the `sub esp, 0` prologue (no frame local — just the four saved regs).
+    r[0] = mem.r32(e + 0x14)
+    v = (e - 16) & 0xFFFFFFFF
+    cpu._flags_sub(v, 0, v, 32)
+    mem.w32(e - 4, r[3]); mem.w32(e - 8, r[6])
+    mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
+    cpu.eip = cpu.pop(4)
+
+
 def install_logic_hooks(cpu) -> int:
     cpu.replacement_hooks[ANIM] = anim_timers_118345
     cpu.hook_names[ANIM] = "anim_timers_118345"
@@ -328,4 +348,6 @@ def install_logic_hooks(cpu) -> int:
     cpu.hook_names[PAGE_SWAP] = "swap_display_pages_11c886"
     cpu.replacement_hooks[SET_CLIP] = set_clip_rect_11b57a
     cpu.hook_names[SET_CLIP] = "set_clip_rect_11b57a"
-    return 9
+    cpu.replacement_hooks[SET_DRAW_PARAMS] = set_draw_params_11b541
+    cpu.hook_names[SET_DRAW_PARAMS] = "set_draw_params_11b541"
+    return 10

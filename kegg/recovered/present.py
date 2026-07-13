@@ -6,6 +6,15 @@ pass.  Operates on a `kegg.bridge.game_state.GameState` view; VM-free.
 from __future__ import annotations
 
 
+def set_draw_params(state, p0: int, p1: int, flag: int, p3: int, p4: int) -> None:
+    """Store the draw-parameter block at [0x14e200] (recovered from 0x11b541).
+
+    A flat copy of the five arguments into the packed
+    ``{p0:dword, p1:dword, flag:byte, p3:dword, p4:dword}`` record the
+    0x11bxxx anim/draw routines read back."""
+    state.write_draw_params(p0, p1, flag, p3, p4)
+
+
 def set_clip_rect(state, x0: int, y0: int, x1: int, y1: int) -> None:
     """Normalize a two-corner box and store it as the clip rect (0x11b57a).
 

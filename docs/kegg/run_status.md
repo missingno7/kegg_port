@@ -2,33 +2,43 @@
 
 ## Summary (for the human)
 
-**The game runs — and it's in-game.** In one session the port went from "the
-VM cannot load this executable at all" to Krypton Egg booting through its whole
-hardware-detection screen, animating its title, responding to a key press, and
-rendering **level-1 gameplay** (bricks, paddle, ball, score bar) — all executed
-by the original game code inside the new 386 protected-mode VM, with correct
-colors and screen layout (verified against the player's reference screenshot).
+**The game runs, plays, and its code is being recovered — verified byte-for-byte
+against the original.** Krypton Egg boots, shows its title and menu, plays
+level 1 with sound and mouse, all inside the new 386 protected-mode VM. Beyond
+"it runs", the actual game code is now being turned back into readable source:
+the two sprite blitters (the bulk of the on-screen drawing) are **rewritten as
+clean native code**, and ~50 more gameplay routines (animation, the draw-list
+builder, the object system, the draw dispatcher) are **mechanically recovered
+and proven identical to the original** on the real game. Every one is checked
+by running the original and the recovered code side by side and comparing the
+entire machine — registers, memory, and screen — after each call; so far
+**79,500+ blitter calls and ~50 routines, zero mismatches**.
 
-What made it possible: a loader for the game's 32-bit executable format, a new
-386 CPU interpreter, an emulated DOS/4GW environment (DOS services, DPMI
-memory, VGA including the "Mode X" trick the game uses for its 70 fps
-rendering, a keyboard controller with real interrupts, and a mouse driver).
-Sound Blaster is not emulated yet — the game politely warns and continues.
+What made it possible: a loader for the game's 32-bit format, a new 386 CPU,
+an emulated DOS/4GW environment (VGA Mode X, Sound Blaster, keyboard IRQs,
+mouse), and an automatic "lifter" that turns the original machine code back
+into verified Python — extended this session so it can also recover the
+game's switch-statement dispatchers (100% of the gameplay code is now
+recoverable this way).
 
-Next: drive the menus properly (keyboard input works now), wire the standard
-play runner with a live window, get file I/O exercised (the game hasn't opened
-its data files yet in our runs — title/gameplay assets appear to be loaded…
-investigate), and start the demo corpus.
+Next: name the object/struct fields into a clean data model (a couple more
+routines will confirm them), then keep converting the verified lifts into
+readable named source; reach the routines that only run in other game states
+(needs a few more play sessions to capture).
 
 ## Where we are
 
-- **Phase:** Bring-up, steps 1–3 done (load & run ✓, see output ✓, frame
-  boundary found ✓ — the 3DAh retrace wait at link 0x19e35). Step 2½ (live
-  viewer/input wiring) and steps 4–6 (frame verifier, input-wait registry,
-  first demo) are next.
-- **Native %:** n/a (bring-up)
-- **Demo corpus:** none yet
-- **Open blockers:** none open (B1, B2 resolved — see blockers.md)
+- **Phase:** Lifting loop (charter Phase 1) — the rendering island's two
+  blitters recovered as clean source; a broad batch of gameplay logic
+  lift-verified. Bring-up (steps 0–6) done except a formal demo corpus.
+- **Recovered (clean source):** the two Mode X sprite blitters
+  (`kegg/recovered/rle_blit.py` + `kegg/render_hooks.py`), 79,501 in-game
+  calls verified byte-exact.
+- **Lift-verified (scaffold for recovery):** ~50 routines ORACLE_PASSING in
+  situ (incl. the draw dispatcher via the new tail-jump lift); 100% of the
+  auto-entries census is liftable.
+- **Demo corpus:** none yet (one gameplay snapshot: snap_126359171).
+- **Open blockers:** none.
 
 ## Recent findings (newest first)
 

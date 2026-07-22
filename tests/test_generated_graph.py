@@ -34,6 +34,14 @@ def test_graph_is_disjoint_from_authored_overrides():
 
 
 @pytest.mark.skipif(not EXE.exists(), reason="assets/KE.EXE not present")
+def test_committed_graph_matches_the_build_recipe():
+    """kegg/graph_hot is reproducible: it equals a fresh emission from
+    scripts/build_graph.py (guards against a hand-edited or stale baseline)."""
+    import scripts.build_graph as bg
+    assert bg.main(["--check"]) == 0
+
+
+@pytest.mark.skipif(not EXE.exists(), reason="assets/KE.EXE not present")
 def test_plan_selects_and_binds_the_generated_graph():
     from dos_re.player import GameFrontend
     from kegg.identity import function_id, image_identity

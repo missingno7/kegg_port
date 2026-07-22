@@ -401,31 +401,3 @@ def update_frame_timers_119e54(cpu):
     mem.w32(e - 12, r[7]); mem.w32(e - 16, r[5])
     mem.w32(e - 20, count)                  # [ebp-4] frame local
     cpu.eip = cpu.pop(4)
-
-
-def install_logic_hooks(cpu) -> int:
-    cpu.replacement_hooks[ANIM] = anim_timers_118345
-    cpu.hook_names[ANIM] = "anim_timers_118345"
-    cpu.replacement_hooks[DRAW_LIST] = build_draw_list_1183b1
-    cpu.hook_names[DRAW_LIST] = "build_draw_list_1183b1"
-    cpu.replacement_hooks[LOAD_OBJ] = load_object_1195ee
-    cpu.hook_names[LOAD_OBJ] = "load_object_1195ee"
-    cpu.replacement_hooks[SPRITE_BOUNDS] = sprite_bounds_118004
-    cpu.hook_names[SPRITE_BOUNDS] = "sprite_bounds_118004"
-    cpu.replacement_hooks[BALL_Y_SWAP] = swap_ball_y_11eda0
-    cpu.hook_names[BALL_Y_SWAP] = "swap_ball_y_11eda0"
-    cpu.replacement_hooks[RECTS_OVERLAP] = rects_overlap_11b5df
-    cpu.hook_names[RECTS_OVERLAP] = "rects_overlap_11b5df"
-    cpu.replacement_hooks[STEP_SEQ] = step_sequence_11b17e
-    cpu.hook_names[STEP_SEQ] = "step_sequence_11b17e"
-    cpu.replacement_hooks[PAGE_SWAP] = swap_display_pages_11c886
-    cpu.hook_names[PAGE_SWAP] = "swap_display_pages_11c886"
-    cpu.replacement_hooks[SET_CLIP] = set_clip_rect_11b57a
-    cpu.hook_names[SET_CLIP] = "set_clip_rect_11b57a"
-    cpu.replacement_hooks[SET_DRAW_PARAMS] = set_draw_params_11b541
-    cpu.hook_names[SET_DRAW_PARAMS] = "set_draw_params_11b541"
-    cpu.replacement_hooks[SPAWN_EFFECT] = spawn_effect_117e62
-    cpu.hook_names[SPAWN_EFFECT] = "spawn_effect_117e62"
-    cpu.replacement_hooks[FRAME_TIMERS] = update_frame_timers_119e54
-    cpu.hook_names[FRAME_TIMERS] = "update_frame_timers_119e54"
-    return 12

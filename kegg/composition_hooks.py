@@ -33,11 +33,3 @@ def remove_list_element_114291(cpu):
     # verifier).
     remove_list_element(cpu.mem.data)
     cpu.eip = cpu.pop(4)
-
-
-def install_composition_hooks(cpu) -> int:
-    cpu.replacement_hooks[REMOVE_LIST_ELEM] = remove_list_element_114291
-    cpu.hook_names[REMOVE_LIST_ELEM] = "remove_list_element_114291"
-    cpu.replacement_hooks[PROCESS_BRICKS] = process_brick_list_114085
-    cpu.hook_names[PROCESS_BRICKS] = "process_brick_list_114085"
-    return 2

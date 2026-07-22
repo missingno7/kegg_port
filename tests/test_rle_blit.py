@@ -93,16 +93,17 @@ def test_matches_interpreted_blitter_in_game():
 
 
 @pytest.mark.skipif(not SNAP.exists(), reason="gameplay snapshot not present")
-def test_recovered_hook_verifies_against_oracle():
-    """The recovered blitter hook (unclipped native + clipped fallback) must
+def test_recovered_override_verifies_against_oracle():
+    """The recovered blitter override (unclipped native + clipped fallback) must
     reproduce the original routine byte-exact — every call diffed against the
-    interpreted ASM by the strict differential verifier."""
+    interpreted ASM by the strict differential verifier.  The plan binds the
+    whole override catalog; the verifier proves each call as it fires."""
     from dos_re.pm_snapshot import load_pm_snapshot
-    from dos_re.pm_verification import (install_pm_hook_verifier,
-                                        PMHookVerifyDivergence)
-    from kegg.render_hooks import install_render_hooks
-    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(SNAP))
-    install_render_hooks(rt.cpu)
+    from dos_re.pm_verification import install_pm_hook_verifier
+    from kegg.overrides import bind_overrides
+    exe = str(ROOT / "assets" / "KE.EXE")
+    rt = load_pm_snapshot(exe, str(SNAP))
+    bind_overrides(rt, exe)                 # plan-owned install of every override
     v = install_pm_hook_verifier(rt)
     v.config.samples = None                # verify EVERY call, no retirement
     rt.cpu.run(4_000_000)

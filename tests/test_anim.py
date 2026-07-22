@@ -80,14 +80,13 @@ SNAP = ROOT / "artifacts" / "snapshots" / "snap_126359171"
 
 
 @pytest.mark.skipif(not SNAP.exists(), reason="gameplay snapshot not present")
-def test_anim_hook_verifies_against_oracle():
+def test_anim_override_verifies_against_oracle():
     from dos_re.pm_snapshot import load_pm_snapshot
     from dos_re.pm_verification import install_pm_hook_verifier
-    from kegg.render_hooks import install_render_hooks
-    from kegg.logic_hooks import install_logic_hooks
-    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(SNAP))
-    install_render_hooks(rt.cpu)
-    install_logic_hooks(rt.cpu)
+    from kegg.overrides import bind_overrides
+    exe = str(ROOT / "assets" / "KE.EXE")
+    rt = load_pm_snapshot(exe, str(SNAP))
+    bind_overrides(rt, exe)                 # plan-owned install of every override
     v = install_pm_hook_verifier(rt)
     v.config.samples = None
     rt.cpu.run(3_000_000)

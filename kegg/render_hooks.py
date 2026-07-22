@@ -289,11 +289,3 @@ def blit2_1225ff(cpu):
     r[7] = edi
     cpu._flags_add((dl - 1) & 0xFF, 1, 0, 8)
     cpu.eip = cpu.pop(4)
-
-
-def install_render_hooks(cpu) -> int:
-    cpu.replacement_hooks[BLIT] = blit_1222d1
-    cpu.hook_names[BLIT] = "blit_1222d1"
-    cpu.replacement_hooks[BLIT2] = blit2_1225ff
-    cpu.hook_names[BLIT2] = "blit2_1225ff"
-    return 2

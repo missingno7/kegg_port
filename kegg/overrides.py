@@ -22,9 +22,10 @@ from dos_re.execution import (BackendAdapter, INTERPRETED_CPU_CARRIER,
                               ImplementationCatalog, ImplementationDescriptor,
                               ImplementationEntry, ImplementationOrigin,
                               OverrideCategory, ProgramCoverage, RecoveryLevel,
-                              plan_execution, profile_configuration)
+                              bind_plan_implementations, plan_execution,
+                              profile_configuration)
 
-from kegg.identity import PROGRAM, function_id
+from kegg.identity import PROGRAM, function_id, image_identity
 
 # --- the recovered semantic bodies (pure; stay dos_re-free) ------------------
 from kegg.recovered.anim import (build_draw_list, load_current_object,
@@ -171,6 +172,20 @@ def authored_plan(image, *, profile: str = "development"):
         selected_overrides=authored_ids(),
     )
     return plan_execution(config, authored_coverage(image), authored_catalog(image))
+
+
+def bind_overrides(rt, exe_path, *, profile: str = "development"):
+    """Bind the authored override plan onto an already-booted runtime.
+
+    The convenience install path: builds the plan for ``exe_path`` and binds it
+    through ``bind_plan_implementations`` (the same seam the player uses), so
+    every recovered override installs.  ``create_game_runtime`` and the oracle
+    tests call this instead of the retired eager ``install_*_hooks``.  Returns
+    the bound plan.
+    """
+    plan = authored_plan(image_identity(exe_path), profile=profile)
+    bind_plan_implementations(rt, plan, carrier_id=INTERPRETED_CPU_CARRIER)
+    return plan
 
 
 def catalog_entries(catalog: ImplementationCatalog):

@@ -18,12 +18,15 @@ from __future__ import annotations
 
 from typing import NamedTuple, Callable
 
+from pathlib import Path
+
 from dos_re.execution import (BackendAdapter, INTERPRETED_CPU_CARRIER,
                               ImplementationCatalog, ImplementationDescriptor,
                               ImplementationEntry, ImplementationOrigin,
                               OverrideCategory, ProgramCoverage, RecoveryLevel,
                               bind_plan_implementations, plan_execution,
                               profile_configuration)
+from dos_re.lift.install import activate_generated_graph32
 
 from kegg.identity import PROGRAM, function_id, image_identity
 
@@ -110,6 +113,21 @@ _OVERRIDES: tuple[_Override, ...] = (
 #: The flat EIPs the port overrides — the plan's coverage roots.
 OVERRIDE_EIPS: tuple[int, ...] = tuple(o.eip for o in _OVERRIDES)
 
+# --- the generated (lifted-vmless) hot-set graph ----------------------------
+# The measured worst-case hot game-logic functions (~92% of interpreted work
+# once the render overrides are in) lifted to per-instruction Python that skips
+# the interpreter's fetch/decode/dispatch — the CPython/mobile accelerator.
+# Disjoint from the authored EIPs; runs on the same interpreted-cpu carrier
+# (the lifted functions install into cpu.replacement_hooks like the authored
+# adapters).  Proven byte-exact against the ASM oracle over the ball-heavy
+# gameplay snapshot.
+GRAPH_HOT_DIR = Path(__file__).resolve().parent / "graph_hot"
+GRAPH_HOT_EIPS: tuple[int, ...] = (
+    0x1185A4, 0x122D5F, 0x1191A3, 0x117BF4, 0x118066,
+    0x122A9C, 0x122B94, 0x121DF8, 0x11B1DF, 0x1230B7,
+)
+GENERATED_GRAPH_ID = "generated-hot-graph"
+
 
 def _authored_entry(image, override: _Override) -> ImplementationEntry:
     target = function_id(image, override.eip)
@@ -141,6 +159,39 @@ def _authored_entry(image, override: _Override) -> ImplementationEntry:
     )
 
 
+def _generated_graph_entry(image) -> ImplementationEntry:
+    """The lifted-vmless hot-set graph as one GENERATED implementation.
+
+    Generated implementations use the BASELINE category (they reproduce the
+    original, they don't author new behavior).  The backend adapter activates
+    the whole graph directory through ``activate_generated_graph32`` — the
+    lifted modules install into ``cpu.replacement_hooks`` on the interpreted
+    CPU carrier, exactly like the authored adapters, so authored overrides at
+    shared EIPs still win (this set is disjoint from them by construction).
+    """
+    targets = frozenset(function_id(image, e) for e in GRAPH_HOT_EIPS)
+
+    def activate(runtime, _targets):
+        activate_generated_graph32(runtime.cpu, GRAPH_HOT_DIR)
+
+    return ImplementationEntry(
+        descriptor=ImplementationDescriptor(
+            implementation_id=GENERATED_GRAPH_ID,
+            targets=targets,
+            origin=ImplementationOrigin.GENERATED,
+            category=OverrideCategory.BASELINE,
+            recovery_level=RecoveryLevel.GENERATED_VMLESS,
+            properties=frozenset({"cpu-adapted", "dos-memory-backed",
+                                  "lifted", "linked"}),
+            implementation_digest=f"{GENERATED_GRAPH_ID}:v1",
+        ),
+        adapters=(BackendAdapter(
+            f"{GENERATED_GRAPH_ID}/interpreted", INTERPRETED_CPU_CARRIER,
+            activate, f"{GENERATED_GRAPH_ID}:adapter",
+        ),),
+    )
+
+
 def authored_entries(image) -> list[ImplementationEntry]:
     """The authored overrides for this image, one per recovered routine."""
     return [_authored_entry(image, o) for o in _OVERRIDES]
@@ -150,14 +201,24 @@ def authored_ids() -> tuple[str, ...]:
     return tuple(o.name for o in _OVERRIDES)
 
 
-def authored_catalog(image) -> ImplementationCatalog:
-    return ImplementationCatalog(tuple(authored_entries(image)))
+def authored_catalog(image, *, generated_graph: bool = False) -> ImplementationCatalog:
+    entries = authored_entries(image)
+    if generated_graph:
+        entries.append(_generated_graph_entry(image))
+    return ImplementationCatalog(tuple(entries))
 
 
-def authored_coverage(image) -> ProgramCoverage:
+def selected_ids(*, generated_graph: bool = False) -> tuple[str, ...]:
+    ids = authored_ids()
+    return ids + (GENERATED_GRAPH_ID,) if generated_graph else ids
+
+
+def authored_coverage(image, *, generated_graph: bool = False) -> ProgramCoverage:
     """Coverage whose roots are the override targets themselves; the
     interpreted CPU carries everything else while these run as verified seams."""
     targets = frozenset(function_id(image, o.eip) for o in _OVERRIDES)
+    if generated_graph:
+        targets |= frozenset(function_id(image, e) for e in GRAPH_HOT_EIPS)
     return ProgramCoverage(
         roots=tuple(sorted(targets)),
         reachable=targets,
@@ -165,30 +226,39 @@ def authored_coverage(image) -> ProgramCoverage:
     )
 
 
-def authored_plan(image, *, profile: str = "development"):
-    """A minimal ExecutionPlan selecting exactly the authored overrides.
+def authored_plan(image, *, profile: str = "development",
+                  generated_graph: bool = False):
+    """A minimal ExecutionPlan selecting the authored overrides.
 
     The development-profile slice the differential verifier proves; the whole
     catalog binds through ``bind_execution_plan`` with no eager installation.
+    ``generated_graph=True`` additionally selects the lifted-vmless hot-set
+    graph (the CPython/mobile accelerator) alongside the authored overrides.
     """
     config = profile_configuration(
         profile,
         program_identity=str(PROGRAM),
-        selected_overrides=authored_ids(),
+        selected_overrides=selected_ids(generated_graph=generated_graph),
     )
-    return plan_execution(config, authored_coverage(image), authored_catalog(image))
+    return plan_execution(
+        config,
+        authored_coverage(image, generated_graph=generated_graph),
+        authored_catalog(image, generated_graph=generated_graph))
 
 
-def bind_overrides(rt, exe_path, *, profile: str = "development"):
+def bind_overrides(rt, exe_path, *, profile: str = "development",
+                   generated_graph: bool = False):
     """Bind the authored override plan onto an already-booted runtime.
 
     The convenience install path: builds the plan for ``exe_path`` and binds it
     through ``bind_plan_implementations`` (the same seam the player uses), so
     every recovered override installs.  ``create_game_runtime`` and the oracle
-    tests call this instead of the retired eager ``install_*_hooks``.  Returns
-    the bound plan.
+    tests call this instead of the retired eager ``install_*_hooks``.
+    ``generated_graph=True`` also installs the lifted-vmless hot-set graph.
+    Returns the bound plan.
     """
-    plan = authored_plan(image_identity(exe_path), profile=profile)
+    plan = authored_plan(image_identity(exe_path), profile=profile,
+                         generated_graph=generated_graph)
     bind_plan_implementations(rt, plan, carrier_id=INTERPRETED_CPU_CARRIER)
     return plan
 

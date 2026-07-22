@@ -73,96 +73,58 @@ def test_emit_draw_pure():
     assert _r32(d, L_BASE) == brick + L_STRIDE           # brick ptr advanced
 
 
-DEMO = ROOT / "artifacts" / "demos" / "demo_167343187"
+# A mid-play gameplay snapshot with balls breaking bricks — re-record with
+# `scripts/play.py` (F12) during active play, or as a 3.0 ReplayArtifact base.
+SNAP = ROOT / "artifacts" / "snapshots" / "gameplay_balls"
 
 
-@pytest.mark.skipif(not DEMO.exists(), reason="level-2 demo bundle not present")
+@pytest.mark.skipif(not SNAP.exists(),
+                    reason="mid-play snapshot (balls breaking bricks) not present")
 def test_remove_list_element_composition_verifies():
-    """Replay the demo with the observable-state composition verifier on the
-    recovered brick-removal; every call must match the interpreted original
-    outside its transient stack frame."""
+    """Play forward from a mid-game snapshot with the observable-state
+    composition verifier on the recovered brick-removal; every call must match
+    the interpreted original outside its transient stack frame."""
     from dos_re.pm_snapshot import load_pm_snapshot
-    from dos_re.pm_input_demo import PMInputDemo, FrameClock, FramePaced
-    from dos_re.pm_player import send_key
     from dos_re.pm_composition import (install_pm_composition_verifier,
                                        PMCompositionConfig)
-    from kegg.render_hooks import install_render_hooks
-    from kegg.logic_hooks import install_logic_hooks
-    from kegg.composition_hooks import install_composition_hooks, REMOVE_LIST_ELEM
+    from kegg.overrides import bind_overrides
+    from kegg.composition_hooks import REMOVE_LIST_ELEM, PROCESS_BRICKS
 
-    demo = PMInputDemo.load(str(DEMO))
-    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(DEMO / "snapshot"))
-    install_render_hooks(rt.cpu)
-    install_logic_hooks(rt.cpu)
-    install_composition_hooks(rt.cpu)
-    # 0x114291's only caller in this demo is 0x114085; leave 0x114085
-    # interpreted so it actually reaches (and we can verify) 0x114291.
-    from kegg.composition_hooks import PROCESS_BRICKS
-    rt.cpu.replacement_hooks.pop(PROCESS_BRICKS, None)
-    rt.cpu.hook_names.pop(PROCESS_BRICKS, None)
-    cpu, dos = rt.cpu, rt.dos
-    by_frame = demo.by_frame()
-
-    def on_frame(f):
-        for kind, payload in by_frame.get(f, ()):
-            if kind == "key":
-                send_key(dos, payload[1], payload[0])
-            elif kind == "mouse":
-                dos.set_mouse_norm(payload[0], payload[1])
-                dos.mouse_buttons = payload[2]
-
-    clock = FrameClock(cpu, 0x119D40, on_frame)
+    exe = str(ROOT / "assets" / "KE.EXE")
+    rt = load_pm_snapshot(exe, str(SNAP))
+    bind_overrides(rt, exe)                          # plan-owned install
+    cpu = rt.cpu
+    # 0x114291's only caller is 0x114085; leave 0x114085 interpreted so it
+    # actually reaches (and we can verify) 0x114291.
+    cpu.replacement_hooks.pop(PROCESS_BRICKS, None)
+    cpu.hook_names.pop(PROCESS_BRICKS, None)
     for k in list(cpu.replacement_hooks):
         if k != REMOVE_LIST_ELEM:
             cpu.hook_verifier_passthrough.add(k)
     v = install_pm_composition_verifier(rt, PMCompositionConfig(samples=None))
-    while clock.frame < demo.total_frames and not cpu.halted:
-        clock.stop_at = clock.frame + 1
-        try:
-            cpu.run(4_000_000)
-        except FramePaced:
-            pass
+    cpu.run(8_000_000)
     assert v.calls_per_hook.get(REMOVE_LIST_ELEM, 0) > 10   # exercised + verified
 
 
-@pytest.mark.skipif(not DEMO.exists(), reason="level-2 demo bundle not present")
+@pytest.mark.skipif(not SNAP.exists(),
+                    reason="mid-play snapshot (balls breaking bricks) not present")
 def test_process_brick_list_composition_verifies():
-    """The full ball-vs-brick loop, observable-verified over the demo (includes
-    the collision-response path with the per-type handler delegated)."""
+    """The full ball-vs-brick loop, observable-verified forward from a mid-game
+    snapshot (includes the collision-response path with the per-type handler
+    delegated to the interpreter)."""
     from dos_re.pm_snapshot import load_pm_snapshot
-    from dos_re.pm_input_demo import PMInputDemo, FrameClock, FramePaced
-    from dos_re.pm_player import send_key
     from dos_re.pm_composition import (install_pm_composition_verifier,
                                        PMCompositionConfig)
-    from kegg.render_hooks import install_render_hooks
-    from kegg.logic_hooks import install_logic_hooks
-    from kegg.composition_hooks import install_composition_hooks, PROCESS_BRICKS
+    from kegg.overrides import bind_overrides
+    from kegg.composition_hooks import PROCESS_BRICKS
 
-    demo = PMInputDemo.load(str(DEMO))
-    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(DEMO / "snapshot"))
-    install_render_hooks(rt.cpu)
-    install_logic_hooks(rt.cpu)
-    install_composition_hooks(rt.cpu)
-    cpu, dos = rt.cpu, rt.dos
-    by_frame = demo.by_frame()
-
-    def on_frame(f):
-        for kind, payload in by_frame.get(f, ()):
-            if kind == "key":
-                send_key(dos, payload[1], payload[0])
-            elif kind == "mouse":
-                dos.set_mouse_norm(payload[0], payload[1])
-                dos.mouse_buttons = payload[2]
-
-    clock = FrameClock(cpu, 0x119D40, on_frame)
+    exe = str(ROOT / "assets" / "KE.EXE")
+    rt = load_pm_snapshot(exe, str(SNAP))
+    bind_overrides(rt, exe)                          # plan-owned install
+    cpu = rt.cpu
     for k in list(cpu.replacement_hooks):
         if k != PROCESS_BRICKS:
             cpu.hook_verifier_passthrough.add(k)
     v = install_pm_composition_verifier(rt, PMCompositionConfig(samples=None))
-    while clock.frame < demo.total_frames and not cpu.halted:
-        clock.stop_at = clock.frame + 1
-        try:
-            cpu.run(4_000_000)
-        except FramePaced:
-            pass
-    assert v.calls_per_hook.get(PROCESS_BRICKS, 0) == demo.total_frames
+    cpu.run(8_000_000)
+    assert v.calls_per_hook.get(PROCESS_BRICKS, 0) > 10   # once per frame

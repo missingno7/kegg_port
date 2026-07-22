@@ -85,45 +85,30 @@ def test_step_sequence_pure():
     assert r32(CUR) == 0x1000 and r32(CNT) == 5
 
 
-DEMO = ROOT / "artifacts" / "demos" / "demo_167343187"
+# A mid-play gameplay snapshot with balls in motion — re-record with
+# `scripts/play.py` (F12) during active play, or as a 3.0 ReplayArtifact base.
+SNAP = ROOT / "artifacts" / "snapshots" / "gameplay_balls"
 
 
-@pytest.mark.skipif(not DEMO.exists(), reason="level-2 demo bundle not present")
-def test_ball_y_swap_verifies_against_oracle():
-    """Replay the tens-of-balls level-2 demo with the differential verifier
-    focused on the ball-Y swap; every call must be byte-exact."""
+@pytest.mark.skipif(not SNAP.exists(),
+                    reason="mid-play snapshot (balls in motion) not present")
+def test_ball_y_swap_override_verifies_against_oracle():
+    """Play forward from a mid-game snapshot with the differential verifier
+    focused on the ball-Y swap override; every call must be byte-exact vs the
+    interpreted ASM oracle."""
     from dos_re.pm_snapshot import load_pm_snapshot
-    from dos_re.pm_input_demo import PMInputDemo, FrameClock, FramePaced
-    from dos_re.pm_player import send_key
     from dos_re.pm_verification import (install_pm_hook_verifier,
                                         PMHookVerifierConfig)
-    from kegg.render_hooks import install_render_hooks
-    from kegg.logic_hooks import install_logic_hooks, BALL_Y_SWAP
+    from kegg.overrides import bind_overrides
+    from kegg.logic_hooks import BALL_Y_SWAP
 
-    demo = PMInputDemo.load(str(DEMO))
-    rt = load_pm_snapshot(str(ROOT / "assets" / "KE.EXE"), str(DEMO / "snapshot"))
-    install_render_hooks(rt.cpu)
-    install_logic_hooks(rt.cpu)
-    cpu, dos = rt.cpu, rt.dos
-    for k in list(cpu.replacement_hooks):
+    exe = str(ROOT / "assets" / "KE.EXE")
+    rt = load_pm_snapshot(exe, str(SNAP))
+    bind_overrides(rt, exe)                          # plan-owned install
+    cpu = rt.cpu
+    for k in list(cpu.replacement_hooks):            # focus: verify only the swap
         if k != BALL_Y_SWAP:
             cpu.hook_verifier_passthrough.add(k)
     v = install_pm_hook_verifier(rt, PMHookVerifierConfig(samples=None))
-    by_frame = demo.by_frame()
-
-    def on_frame(f):
-        for kind, payload in by_frame.get(f, ()):
-            if kind == "key":
-                send_key(dos, payload[1], payload[0])
-            elif kind == "mouse":
-                dos.set_mouse_norm(payload[0], payload[1])
-                dos.mouse_buttons = payload[2]
-
-    clock = FrameClock(cpu, 0x119D40, on_frame)
-    while clock.frame < demo.total_frames and not cpu.halted:
-        clock.stop_at = clock.frame + 1
-        try:
-            cpu.run(4_000_000)
-        except FramePaced:
-            pass
+    cpu.run(8_000_000)
     assert v.calls_per_hook.get(BALL_Y_SWAP, 0) > 100   # exercised + byte-exact

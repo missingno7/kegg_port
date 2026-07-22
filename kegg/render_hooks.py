@@ -1,9 +1,13 @@
-"""Recovered rendering-island hooks for Krypton Egg.
+"""Recovered rendering-island CPU adapters for Krypton Egg.
 
-The thin adapter over kegg.recovered.rle_blit: marshals VM state into the pure
-RLE decoder and reproduces the blitter's full observable effect (planes,
-registers, sequencer, scratch globals, stack scratch) so it verifies
-byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
+These functions are the *backend adapters* of the rendering overrides declared
+in ``kegg.overrides``; the execution plan installs them into
+``cpu.replacement_hooks`` via ``bind_execution_plan`` (there is no eager
+install).  Each is the thin adapter over ``kegg.recovered.rle_blit``: it
+marshals VM state into the pure RLE decoder and reproduces the blitter's full
+observable effect (planes, registers, sequencer, scratch globals, stack
+scratch) so it verifies byte-exact against the ASM oracle
+(``pm_verification.PMHookVerifier``).
 
 The blitter at 0x1222D1 has three variants (docs/kegg/rendering_island.md).
 UNCLIPPED and HORIZONTAL-CLIP are recovered natively here; VERTICAL-CLIP falls
@@ -289,11 +293,3 @@ def blit2_1225ff(cpu):
     r[7] = edi
     cpu._flags_add((dl - 1) & 0xFF, 1, 0, 8)
     cpu.eip = cpu.pop(4)
-
-
-def install_render_hooks(cpu) -> int:
-    cpu.replacement_hooks[BLIT] = blit_1222d1
-    cpu.hook_names[BLIT] = "blit_1222d1"
-    cpu.replacement_hooks[BLIT2] = blit2_1225ff
-    cpu.hook_names[BLIT2] = "blit2_1225ff"
-    return 2

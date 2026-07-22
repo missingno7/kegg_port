@@ -1,11 +1,13 @@
-"""Verified lifted 32-bit hooks for Krypton Egg — installable as a fleet.
+"""Generated-baseline lifted functions for Krypton Egg — installable as a fleet.
 
-Each module here is a mechanically lifted function (dos_re.lift 32-bit
+Each module here is a mechanically lifted 32-bit function (dos_re.lift
 pipeline) that PASSED the strict PM differential verifier in situ (see
-manifest.md).  ``install_lifted32`` registers them on a CPU386 by their entry
-address; every hook self-checks its entry signature at call time, so a wrong
-image (or self-modified code) fails loud rather than running a stale
-replacement.
+manifest.md).  These are the generated baseline the hand-recovered ``kegg/
+recovered`` overrides grew from; the live port installs the overrides through
+the execution plan (``kegg.overrides``), not these.  ``install_lifted``
+registers them on a CPU386 by their entry address for evidence/benchmark runs;
+every one self-checks its entry signature at call time, so a wrong image (or
+self-modified code) fails loud rather than running a stale replacement.
 
 These are literal lifts — per-original-instruction Python — but they skip the
 interpreter's fetch/decode/dispatch, a ~2.5x speedup over the pure interpreter
@@ -20,8 +22,8 @@ from . import lift_1222d1, lift_122288
 _MODULES = (lift_1222d1, lift_122288)
 
 
-def install_lifted32(cpu) -> int:
-    """Register every verified lifted hook on ``cpu``.  Returns the count."""
+def install_lifted(cpu) -> int:
+    """Register every verified lifted function on ``cpu``.  Returns the count."""
     for mod in _MODULES:
         entry = mod.ENTRY
         name = next(n for n in dir(mod) if n.startswith("lift_"))

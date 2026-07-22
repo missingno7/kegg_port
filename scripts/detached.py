@@ -108,6 +108,11 @@ def cmd_play(args) -> int:
     print(f"played DETACHED (no KE.EXE): ran {ran:,} instructions to "
           f"eip=0x{rt.cpu.eip:X}"
           + (f", {bound} lifted-graph functions bound" if bound else ""))
+    if args.png:
+        from dos_re.pm_backend import render_pm_frame, write_rgb_png
+        rgb, w, h = render_pm_frame(rt.dos)
+        write_rgb_png(Path(args.png), rgb, width=w, height=h)
+        print(f"wrote the detached frame ({w}x{h}) -> {args.png}")
     return 0
 
 
@@ -123,6 +128,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("play")
     p.add_argument("--steps", type=int, default=2_000_000)
     p.add_argument("--full-graph", action="store_true", dest="full_graph")
+    p.add_argument("--png", default="", help="render the final detached frame to this PNG")
     p.set_defaults(fn=cmd_play)
     args = ap.parse_args(argv)
     return args.fn(args)

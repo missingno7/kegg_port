@@ -24,11 +24,13 @@ def test_capture_verify_and_play_detached(tmp_path, monkeypatch):
     import scripts.detached as d
     monkeypatch.setattr(d, "SNAP", tmp_path / "boot")
 
-    assert d.cmd_capture(argparse.Namespace(boot_steps=800_000)) == 0
+    assert d.cmd_capture(argparse.Namespace(
+        boot_steps=800_000, replay="", frames=250)) == 0
     assert (tmp_path / "boot" / "pm_state.json").exists()
 
     # the EXE-free resume matches the EXE-loaded resume byte-for-byte
     assert d.cmd_verify(argparse.Namespace(steps=200_000)) == 0
 
     # and it plays detached -- load_snapshot_headless builds image=None, no EXE
-    assert d.cmd_play(argparse.Namespace(steps=200_000, full_graph=False)) == 0
+    assert d.cmd_play(argparse.Namespace(
+        steps=200_000, full_graph=False, png="")) == 0

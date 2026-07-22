@@ -35,13 +35,43 @@ from dos_re.pm_snapshot import (save_pm_snapshot, load_pm_snapshot,        # noq
                                 load_snapshot_headless)
 from dos_re.lift.install import activate_generated_graph32                 # noqa: E402
 from dos_re.cpu import HaltExecution                                        # noqa: E402
+from dos_re.replay import ReplayArtifact, ReplayPoint                       # noqa: E402
+from dos_re.pm_snapshot import apply_pm_continuation                        # noqa: E402
+from dos_re.pm_replay_input import (FrameClock,                             # noqa: E402
+                                    ProtectedModeInputAdapter)
+from dos_re.pm_backend import send_key                                      # noqa: E402
 
 from kegg.overrides import GRAPH_FULL_DIR                                    # noqa: E402
 from kegg.runtime import create_game_runtime                                # noqa: E402
 
 EXE = ROOT / "assets" / "KE.EXE"
 ASSETS = ROOT / "assets"
+REPLAYS = ROOT / "artifacts" / "replays"
 SNAP = ROOT / "artifacts" / "detached_boot"
+
+
+def _drive_replay_to_frame(rt, replay_dir, target_frame) -> int:
+    """Drive a recorded replay (interpreter only) to `target_frame` so the
+    capture lands mid-GAMEPLAY, not just at boot.  The one place KE.EXE is used."""
+    art = ReplayArtifact.open(str(replay_dir))
+    md = art.metadata
+    pid = str(md["recording_profile_id"])
+    profs = {p.profile_id: p for p, _ in art.profiles()}
+    base = art.restore(profs[pid], ReplayPoint(0, art.timeline_id))
+    apply_pm_continuation(rt, base)
+    adapter = ProtectedModeInputAdapter(art.events, event_cursor=base.event_cursor)
+    done = {"flag": False}
+
+    def on_frame(frame):
+        adapter.apply(frame, rt.dos, deliver_key=send_key)
+        if frame >= target_frame:
+            done["flag"] = True
+    FrameClock(rt.cpu, int(md["frame_tick_addr"]), on_frame)
+    steps = 0
+    while not done["flag"] and steps < 400_000_000 and not rt.cpu.halted:
+        rt.cpu.run(50_000)
+        steps += 50_000
+    return rt.cpu.instruction_count
 
 
 def _seed_input(rt, n=500):
@@ -58,10 +88,15 @@ def cmd_capture(args) -> int:
     if not EXE.exists():
         raise SystemExit("assets/KE.EXE not present (capture needs it once)")
     rt = create_game_runtime(str(EXE), install_replacements=False)
-    _seed_input(rt)
-    rt.cpu.run(args.boot_steps)
+    if args.replay:
+        _drive_replay_to_frame(rt, REPLAYS / args.replay, args.frames)
+        where = f"replay {args.replay} frame ~{args.frames}"
+    else:
+        _seed_input(rt)
+        rt.cpu.run(args.boot_steps)
+        where = "boot"
     save_pm_snapshot(rt, str(SNAP))
-    print(f"captured at instruction {rt.cpu.instruction_count:,} "
+    print(f"captured at {where}, instruction {rt.cpu.instruction_count:,} "
           f"(eip=0x{rt.cpu.eip:X}) -> {SNAP}")
     return 0
 
@@ -121,6 +156,10 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="command", required=True)
     c = sub.add_parser("capture")
     c.add_argument("--boot-steps", type=int, default=15_000_000)
+    c.add_argument("--replay", default="",
+                   help="drive this recorded replay into gameplay before capturing")
+    c.add_argument("--frames", type=int, default=250,
+                   help="replay frame to capture at (with --replay)")
     c.set_defaults(fn=cmd_capture)
     v = sub.add_parser("verify")
     v.add_argument("--steps", type=int, default=2_000_000)

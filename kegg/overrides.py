@@ -16,6 +16,7 @@ listed.
 """
 from __future__ import annotations
 
+import json
 from typing import NamedTuple, Callable
 
 from pathlib import Path
@@ -128,6 +129,32 @@ GRAPH_HOT_EIPS: tuple[int, ...] = (
 )
 GENERATED_GRAPH_ID = "generated-hot-graph"
 
+# --- the generated full-game graph (whole-program lifted-vmless) -------------
+# Every statically-liftable KE function lifted and linked, MINUS the convergence
+# exclusions (environment waits + stack-switch/computed-transfer routines) and
+# the authored EIPs above (authored adapters win -- calls into them fall through
+# to emulate_call32).  The superset of the hot-set graph; the CPython/mobile
+# accelerator at whole-game scope and the evidence base for a future detached
+# build.  The module bodies (~14 MB) are gitignored and rebuilt from KE.EXE by
+# scripts/build_full_graph.py; graph_full.manifest.json is the committed
+# reproducibility contract and the source of GRAPH_FULL_EIPS.
+GRAPH_FULL_DIR = Path(__file__).resolve().parent / "graph_full"
+MANIFEST_PATH = Path(__file__).resolve().parent / "graph_full.manifest.json"
+GENERATED_FULL_GRAPH_ID = "generated-full-graph"
+
+
+def _load_full_graph_eips() -> tuple[int, ...]:
+    """The full-graph target EIPs from the committed manifest (empty until
+    ``scripts/build_full_graph.py --write-manifest`` has populated it)."""
+    try:
+        data = json.loads(MANIFEST_PATH.read_text())
+    except FileNotFoundError:
+        return ()
+    return tuple(int(x, 16) for x in data.get("graph_eips", ()))
+
+
+GRAPH_FULL_EIPS: tuple[int, ...] = _load_full_graph_eips()
+
 
 def _authored_entry(image, override: _Override) -> ImplementationEntry:
     target = function_id(image, override.eip)
@@ -159,37 +186,66 @@ def _authored_entry(image, override: _Override) -> ImplementationEntry:
     )
 
 
-def _generated_graph_entry(image) -> ImplementationEntry:
-    """The lifted-vmless hot-set graph as one GENERATED implementation.
+def _generated_graph_entry(image, impl_id, eips, graph_dir,
+                           *, require_built=False) -> ImplementationEntry:
+    """A lifted-vmless generated graph as one GENERATED implementation.
 
     Generated implementations use the BASELINE category (they reproduce the
     original, they don't author new behavior).  The backend adapter activates
     the whole graph directory through ``activate_generated_graph32`` — the
     lifted modules install into ``cpu.replacement_hooks`` on the interpreted
     CPU carrier, exactly like the authored adapters, so authored overrides at
-    shared EIPs still win (this set is disjoint from them by construction).
+    shared EIPs still win (both graph sets are disjoint from the authored EIPs
+    by construction).  ``require_built`` fails loud when the graph directory is
+    empty (the full graph is gitignored and emitted on demand by
+    ``scripts/build_full_graph.py``).
     """
-    targets = frozenset(function_id(image, e) for e in GRAPH_HOT_EIPS)
+    targets = frozenset(function_id(image, e) for e in eips)
 
     def activate(runtime, _targets):
-        activate_generated_graph32(runtime.cpu, GRAPH_HOT_DIR)
+        if require_built and not any(graph_dir.glob("lift_*.py")):
+            raise FileNotFoundError(
+                f"{graph_dir} is empty — build the full graph first: "
+                f"python scripts/build_full_graph.py")
+        activate_generated_graph32(runtime.cpu, graph_dir)
 
     return ImplementationEntry(
         descriptor=ImplementationDescriptor(
-            implementation_id=GENERATED_GRAPH_ID,
+            implementation_id=impl_id,
             targets=targets,
             origin=ImplementationOrigin.GENERATED,
             category=OverrideCategory.BASELINE,
             recovery_level=RecoveryLevel.GENERATED_VMLESS,
             properties=frozenset({"cpu-adapted", "dos-memory-backed",
                                   "lifted", "linked"}),
-            implementation_digest=f"{GENERATED_GRAPH_ID}:v1",
+            implementation_digest=f"{impl_id}:v1",
         ),
         adapters=(BackendAdapter(
-            f"{GENERATED_GRAPH_ID}/interpreted", INTERPRETED_CPU_CARRIER,
-            activate, f"{GENERATED_GRAPH_ID}:adapter",
+            f"{impl_id}/interpreted", INTERPRETED_CPU_CARRIER,
+            activate, f"{impl_id}:adapter",
         ),),
     )
+
+
+def _generated_selection(*, generated_graph=False, full_graph=False):
+    """``(impl_id, eips)`` for the selected generated graph, or ``(None, ())``.
+
+    ``full_graph`` supersedes ``generated_graph``: the full graph is a superset
+    of the hot-set graph, and two generated entries cannot both own the shared
+    hot EIPs, so at most one generated graph is ever selected.
+    """
+    if full_graph:
+        return GENERATED_FULL_GRAPH_ID, GRAPH_FULL_EIPS
+    if generated_graph:
+        return GENERATED_GRAPH_ID, GRAPH_HOT_EIPS
+    return None, ()
+
+
+def _selected_generated_entry(image, impl_id) -> ImplementationEntry:
+    if impl_id == GENERATED_FULL_GRAPH_ID:
+        return _generated_graph_entry(image, impl_id, GRAPH_FULL_EIPS,
+                                      GRAPH_FULL_DIR, require_built=True)
+    return _generated_graph_entry(image, impl_id, GRAPH_HOT_EIPS, GRAPH_HOT_DIR)
 
 
 def authored_entries(image) -> list[ImplementationEntry]:
@@ -201,24 +257,32 @@ def authored_ids() -> tuple[str, ...]:
     return tuple(o.name for o in _OVERRIDES)
 
 
-def authored_catalog(image, *, generated_graph: bool = False) -> ImplementationCatalog:
+def authored_catalog(image, *, generated_graph: bool = False,
+                     full_graph: bool = False) -> ImplementationCatalog:
     entries = authored_entries(image)
-    if generated_graph:
-        entries.append(_generated_graph_entry(image))
+    impl_id, _ = _generated_selection(generated_graph=generated_graph,
+                                      full_graph=full_graph)
+    if impl_id is not None:
+        entries.append(_selected_generated_entry(image, impl_id))
     return ImplementationCatalog(tuple(entries))
 
 
-def selected_ids(*, generated_graph: bool = False) -> tuple[str, ...]:
+def selected_ids(*, generated_graph: bool = False,
+                 full_graph: bool = False) -> tuple[str, ...]:
+    impl_id, _ = _generated_selection(generated_graph=generated_graph,
+                                      full_graph=full_graph)
     ids = authored_ids()
-    return ids + (GENERATED_GRAPH_ID,) if generated_graph else ids
+    return ids + (impl_id,) if impl_id is not None else ids
 
 
-def authored_coverage(image, *, generated_graph: bool = False) -> ProgramCoverage:
+def authored_coverage(image, *, generated_graph: bool = False,
+                      full_graph: bool = False) -> ProgramCoverage:
     """Coverage whose roots are the override targets themselves; the
     interpreted CPU carries everything else while these run as verified seams."""
     targets = frozenset(function_id(image, o.eip) for o in _OVERRIDES)
-    if generated_graph:
-        targets |= frozenset(function_id(image, e) for e in GRAPH_HOT_EIPS)
+    _, eips = _generated_selection(generated_graph=generated_graph,
+                                   full_graph=full_graph)
+    targets |= frozenset(function_id(image, e) for e in eips)
     return ProgramCoverage(
         roots=tuple(sorted(targets)),
         reachable=targets,
@@ -227,38 +291,44 @@ def authored_coverage(image, *, generated_graph: bool = False) -> ProgramCoverag
 
 
 def authored_plan(image, *, profile: str = "development",
-                  generated_graph: bool = False):
+                  generated_graph: bool = False, full_graph: bool = False):
     """A minimal ExecutionPlan selecting the authored overrides.
 
     The development-profile slice the differential verifier proves; the whole
     catalog binds through ``bind_execution_plan`` with no eager installation.
     ``generated_graph=True`` additionally selects the lifted-vmless hot-set
-    graph (the CPython/mobile accelerator) alongside the authored overrides.
+    graph (the CPython/mobile accelerator); ``full_graph=True`` selects the
+    whole-game graph instead (superset of the hot set).  Both are disjoint from
+    the authored EIPs, which always win at their seams.
     """
     config = profile_configuration(
         profile,
         program_identity=str(PROGRAM),
-        selected_overrides=selected_ids(generated_graph=generated_graph),
+        selected_overrides=selected_ids(generated_graph=generated_graph,
+                                        full_graph=full_graph),
     )
     return plan_execution(
         config,
-        authored_coverage(image, generated_graph=generated_graph),
-        authored_catalog(image, generated_graph=generated_graph))
+        authored_coverage(image, generated_graph=generated_graph,
+                          full_graph=full_graph),
+        authored_catalog(image, generated_graph=generated_graph,
+                         full_graph=full_graph))
 
 
 def bind_overrides(rt, exe_path, *, profile: str = "development",
-                   generated_graph: bool = False):
+                   generated_graph: bool = False, full_graph: bool = False):
     """Bind the authored override plan onto an already-booted runtime.
 
     The convenience install path: builds the plan for ``exe_path`` and binds it
     through ``bind_plan_implementations`` (the same seam the player uses), so
     every recovered override installs.  ``create_game_runtime`` and the oracle
     tests call this instead of the retired eager ``install_*_hooks``.
-    ``generated_graph=True`` also installs the lifted-vmless hot-set graph.
-    Returns the bound plan.
+    ``generated_graph=True`` also installs the lifted-vmless hot-set graph;
+    ``full_graph=True`` installs the whole-game graph instead.  Returns the
+    bound plan.
     """
     plan = authored_plan(image_identity(exe_path), profile=profile,
-                         generated_graph=generated_graph)
+                         generated_graph=generated_graph, full_graph=full_graph)
     bind_plan_implementations(rt, plan, carrier_id=INTERPRETED_CPU_CARRIER)
     return plan
 

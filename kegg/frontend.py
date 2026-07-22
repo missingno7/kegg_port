@@ -27,8 +27,11 @@ class KryptonEggFrontend(PMFrontend):
     (``kegg.overrides`` generated entry): a byte-exact accelerator that skips
     the interpreter's fetch/decode/dispatch on the measured worst-case hot
     game logic (~2x worst-case frame time on CPython, the mobile-relevant
-    path).  Off by default -- pure authored overrides -- so nothing changes
-    unless asked.
+    path).  ``--full-graph`` selects the whole-game graph instead (a superset:
+    every liftable function minus the environment-wait / stack-switch routines
+    that must stay interpreted); it must be built first with
+    ``scripts/build_full_graph.py``.  Off by default -- pure authored overrides
+    -- so nothing changes unless asked.
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -37,10 +40,15 @@ class KryptonEggFrontend(PMFrontend):
 
     def add_arguments(self, parser) -> None:
         super().add_arguments(parser)
-        parser.add_argument(
+        graph = parser.add_mutually_exclusive_group()
+        graph.add_argument(
             "--fast", action="store_true",
             help="also bind the lifted-vmless hot-set graph (byte-exact "
                  "native acceleration of the hottest game logic)")
+        graph.add_argument(
+            "--full-graph", action="store_true", dest="full_graph",
+            help="also bind the whole-game lifted-vmless graph (superset of "
+                 "--fast; build it first with scripts/build_full_graph.py)")
 
     def _image(self, args):
         # image_identity content-addresses KE.EXE; cache per exe path so
@@ -56,16 +64,20 @@ class KryptonEggFrontend(PMFrontend):
         return str(PROGRAM)
 
     def execution_implementations(self, args) -> ImplementationCatalog:
-        return authored_catalog(self._image(args),
-                                generated_graph=getattr(args, "fast", False))
+        return authored_catalog(self._image(args), **self._graph_selection(args))
 
     def execution_coverage(self, args) -> ProgramCoverage:
-        return authored_coverage(self._image(args),
-                                 generated_graph=getattr(args, "fast", False))
+        return authored_coverage(self._image(args), **self._graph_selection(args))
 
     def execution_configuration(self, args):
         # Keep the base configuration (bootstrap provider, requested
         # capabilities, profile policy) and add our override selection.
         config = super().execution_configuration(args)
         return replace(config, selected_overrides=selected_ids(
-            generated_graph=getattr(args, "fast", False)))
+            **self._graph_selection(args)))
+
+    @staticmethod
+    def _graph_selection(args) -> dict:
+        """Which generated graph the CLI flags select (mutually exclusive)."""
+        return {"generated_graph": getattr(args, "fast", False),
+                "full_graph": getattr(args, "full_graph", False)}

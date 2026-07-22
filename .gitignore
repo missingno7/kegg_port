@@ -32,3 +32,6 @@ tmp_*.bin
 tmp_*.png
 frame.png
 *.stackdump
+
+# generated full-game graph (rebuilt from KE.EXE by scripts/build_full_graph.py)
+kegg/graph_full/

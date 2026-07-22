@@ -1,4 +1,4 @@
-# kegg/lifted32 — lift proof ledger
+# kegg/lifted — lift proof ledger
 
 > **Note:** the blitter (0x1222D1) is now RECOVERED as clean native
 > code in `kegg/recovered/rle_blit.py` (+ `kegg/render_hooks.py`), which
@@ -93,7 +93,7 @@ The 49 verified this pass (runtime addrs): 0x1158B0 0x117E62 0x118004
 Reproduce/emit any of them:
 `python dos_re/tools/pmlift.py --exe assets/KE.EXE --snapshot
 artifacts/snapshots/snap_126359171 --entry 0xADDR --verify --emit-dir
-kegg/lifted32`.  (A whole-image static emit trips region-budget on some
+kegg/lifted`.  (A whole-image static emit trips region-budget on some
 entries the snapshot-context scan accepts — lift from the snapshot.)
 
 

@@ -1,13 +1,16 @@
-"""Recovered *composed* (non-leaf) routines, installed as VM hooks.
+"""Recovered *composed* (non-leaf) CPU adapters for Krypton Egg.
 
-These call other routines in the original, so they are verified by the
+These functions are the *backend adapters* of the composed overrides in
+`kegg.overrides` (carrying the {composed, call-through} properties); the plan
+installs them into `cpu.replacement_hooks` via `bind_execution_plan`.  They
+call other routines in the original, so they are verified by the
 observable-state composition verifier (dos_re/pm_composition.py), not the
 strict full-machine diff.  Each is installed only where the original's result
-registers are dead at the call site, so the hook only has to reproduce the
+registers are dead at the call site, so the adapter only has to reproduce the
 routine's memory effects and return; the transient stack frame and scratch
 registers are left alone.
 
-Kept separate from `logic_hooks` (the strict, leaf hooks) so the strict
+Kept separate from `logic_hooks` (the strict, leaf adapters) so the strict
 verifier never tries to full-diff a composed routine.
 """
 from __future__ import annotations

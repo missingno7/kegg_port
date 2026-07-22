@@ -1,9 +1,13 @@
-"""Recovered rendering-island hooks for Krypton Egg.
+"""Recovered rendering-island CPU adapters for Krypton Egg.
 
-The thin adapter over kegg.recovered.rle_blit: marshals VM state into the pure
-RLE decoder and reproduces the blitter's full observable effect (planes,
-registers, sequencer, scratch globals, stack scratch) so it verifies
-byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
+These functions are the *backend adapters* of the rendering overrides declared
+in ``kegg.overrides``; the execution plan installs them into
+``cpu.replacement_hooks`` via ``bind_execution_plan`` (there is no eager
+install).  Each is the thin adapter over ``kegg.recovered.rle_blit``: it
+marshals VM state into the pure RLE decoder and reproduces the blitter's full
+observable effect (planes, registers, sequencer, scratch globals, stack
+scratch) so it verifies byte-exact against the ASM oracle
+(``pm_verification.PMHookVerifier``).
 
 The blitter at 0x1222D1 has three variants (docs/kegg/rendering_island.md).
 UNCLIPPED and HORIZONTAL-CLIP are recovered natively here; VERTICAL-CLIP falls

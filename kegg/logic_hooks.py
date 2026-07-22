@@ -1,7 +1,10 @@
-"""Recovered gameplay-logic hooks for Krypton Egg (the VM bridge).
+"""Recovered gameplay-logic CPU adapters for Krypton Egg (the VM bridge).
 
-Thin adapters over `kegg.recovered` pure logic + `kegg.bridge` typed views:
-each reads VM state, runs the recovered rule against a bridge view of
+These functions are the *backend adapters* of the gameplay-logic overrides
+declared in `kegg.overrides`; the execution plan installs them into
+`cpu.replacement_hooks` via `bind_execution_plan` (there is no eager install).
+Each is a thin adapter over `kegg.recovered` pure logic + `kegg.bridge` typed
+views: it reads VM state, runs the recovered rule against a bridge view of
 `cpu.mem.data`, and reproduces the routine's exact register/flag exit so it
 verifies byte-exact against the ASM oracle (pm_verification.PMHookVerifier).
 """

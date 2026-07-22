@@ -1,6 +1,6 @@
 # Krypton Egg — emerging data model (from the verified logic routines)
 
-Derived from the oracle-verified gameplay-logic lifts (kegg/lifted32).
+Derived from the oracle-verified gameplay-logic lifts (kegg/lifted).
 Runtime addresses (link = runtime − 0x100000).  These are working names to
 be confirmed as more routines are recovered; they are what the byte-exact
 lifts demonstrably read/write.

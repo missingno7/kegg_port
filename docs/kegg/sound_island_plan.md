@@ -173,3 +173,25 @@ are set; calls the memcpy at site 0x11C478): stream/mix the next 640 bytes,
 copy into the just-played DMA half, coordinate the ISR's DSP re-arm.  NEXT:
 lift + read 0x11C294's function to map the voice table and .DIG stream
 cursors → recovered/sound.py.
+
+**S2 API surface (write-trap on the ball demo + static caller sweep):** the
+engine's game-facing entries, i.e. THE REGION'S ENTRY SEAMS: `0x11C20D` =
+play_sfx (50 gameplay call sites); `0x11C3AB` = music/track control (22
+sites, menu-heavy); `0x11C14B` = per-frame update (11 sites; holds the
+once-per-frame writers 0x11C1E5/EF/F9); `0x11C26A` = trigger variant (8
+sites); `0x11C2D0` = init (2 boot sites); `0x11C3FB` = ISR block handler;
+`0x11C294` = guarded task tick.  Start events measured at 0x11C389 (x81 in
+500 ball-demo frames ~ ball-hit SFX).  Streamer globals decoded:
+`[0x147444]` stream src cursor, `[0x147448]` remaining, `[0x147454]` DMA
+half dst, `[0x147430]` half offset (xor-toggled by block size
+`[0x147458]`=640), `[0x14E26C]` DMA base, partial-final-block path +
+click-avoidance pad `0x124120(ptr, last_byte, 16)`; `0x123824` = the
+mode-flagged copy variant (`[0x147468]`).  Gameplay SFX go through the SAME
+stream machinery ([0x14747C] stayed -1 all demo) — KE is a single-stream
+engine where SFX (re)take the stream; the stereo enhancement will therefore
+DEFINE voices natively (music + SFX as separate host voices) rather than
+recover a mixer that does not exist.
+
+NEXT: disassemble/lift the seven API functions (all small), name them, write
+recovered/sound.py (stream player + API semantics), then the native backend
+behind the kept coroutine shell.

@@ -10,13 +10,48 @@ faithful contract stays authoritative; stereo/high-rate output is a declared
 
 - KE plays **digitized 8-bit mono PCM at 7936 Hz**: DSP 2.01, single-cycle
   640-byte DMA blocks, refilled from the game's own mix buffer in its IRQ7 ISR.
-- Runtime ISR entry observed at **0x11D252** (a second handler 0x121258 serves
-  the detection phase).  The driver re-arms single-cycle DMA per block.
 - Music is streamed from the `.DIG` assets (KE_MENU/MAIN/LVL/SCORE/PAUSE/
   END/GO/INFOS.DIG); SFX are mixed over it by the game's software mixer.
 - The mix buffer lives in game memory (its overflow once corrupted return
   addresses — see dos4gw.attach_sound_blaster docstring), i.e. mixer state is
   ordinary DOS memory the region will own.
+
+## S1 RESULTS — the island map (measured, 2026-07-22)
+
+ISR-extent trace (120 IRQ7 deliveries) + static caller/IO sweep + disassembly:
+
+**Layers**
+- Hardware primitives (shared, NOT island-private): `0x123FA3 = outb(port,val)`,
+  `0x123FAD = inb(port)` — 60/41 call sites across the whole game (vsync waits
+  included).  The island uses them; it does not own them.
+- **Runtime ISR `0x121258`** (118/120 deliveries; `0x11D252` is the
+  DETECTION-phase handler, 2/120 — earlier attribution reversed).  Protocol,
+  read from disasm: ack SB (`in base+0xE`) → gate on sound-active flag
+  `[0x147458]` → compare block cursor `[0x14744C]` vs end `[0x14745C]` →
+  DSP write-ready spin (`in base+0xC & 0x80, loopnz`) → command `0x14` +
+  length `0x027F` = re-arm the 640-sample single-cycle block.  SB base port
+  variable: `[0x14E2FC]`.  Inlined port I/O (ISR-speed, bypasses the
+  primitives).  Switches to a private stack (the observer's per-stack
+  tracking exists because of this).
+- **Mixer core**: `0x1245D0(a,b,c)` = wrapper (12-byte params via
+  `0x125AC8`, then `0x1245AD`); `0x1245AD` = register-convention marshaller
+  (args → ebp/esi/edi/ebx) around **`0x1256EA` — THE mix worker** →
+  `0x125722`.  `0x1245AD` is already lifted + oracle-verified
+  (kegg/lifted/lift_1245ad.py); `0x1256EA/0x125722/0x125AC8/0x121258` are
+  prime pmlift targets (`--entry`) for lifted baselines before hand recovery.
+- **Driver/management layer `0x11D2xx..0x11E2xx`**: all 17 static callers of
+  `0x1245AD` and all 17 of `0x1245D0` live here (init, detection, track/SFX
+  control).  The game-facing entry points sit at this layer's rim — the
+  region's entry seams (next: sweep callers into 0x11D2xx..0x11E2xx from
+  outside).
+- Port-I/O concentration: 72 in/out at `0x121xxx` (ISR + DSP protocol), 44 at
+  `0x123xxx` (primitives + DSP helpers); the rest is VGA/vsync elsewhere.
+
+**Known globals (symbol-ledger candidates)**: `[0x14E2FC]` SB base port,
+`[0x147458]` sound-active flag, `[0x14744C]/[0x14745C]` block cursor/end.
+Atlas corroboration: `0x11FA42` (per-frame wait/poll tick, callers incl. the
+menu idle `0x110951`) spins through sound waits at level transitions — the
+frame-parked stretches the replay timeline cannot subdivide.
 
 ## Why a region, not per-function overrides
 

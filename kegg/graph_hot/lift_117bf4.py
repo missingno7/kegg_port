@@ -8,7 +8,7 @@ form for yet -- they are exact, but they are also the to-do list.
 """
 from __future__ import annotations
 
-from dos_re.cpu import CF, ZF
+from dos_re.cpu import CF, DF, IF, ZF
 from dos_re.lift.runtime32 import (LiftRuntimeError, call_linked32,
                                    check_signature, emulate_call32,
                                    emulate_int32, interp_one32)

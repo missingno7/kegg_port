@@ -8,7 +8,7 @@ form for yet -- they are exact, but they are also the to-do list.
 """
 from __future__ import annotations
 
-from dos_re.cpu import CF, ZF
+from dos_re.cpu import CF, DF, IF, ZF
 from dos_re.lift.runtime32 import (LiftRuntimeError, call_linked32,
                                    check_signature, emulate_call32,
                                    emulate_int32, interp_one32)
@@ -36,7 +36,7 @@ def lift_1230b7(cpu):
             cpu._flags_sub(_a, _b, _r, 32)
             r[4] = (_r & 0xFFFFFFFF) & 0xFFFFFFFF
             # 0x1230BD  60             pushad
-            interp_one32(cpu, 0x1230BD)  # (interpreter fallback)
+            cpu._pusha(4)
             # 0x1230BE  8b450c         mov
             _o = (sb["ss"] + r[5] + 0xC) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -374,7 +374,7 @@ def lift_1230b7(cpu):
             # 0x1231C9  66bac403       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3C4) & 0xFFFF)
             # 0x1231CD  66ef           in/out
-            interp_one32(cpu, 0x1231CD)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             bb = 25
         elif bb == 25:
             # 0x1231CF  66833d24e3140001 grp1
@@ -403,7 +403,7 @@ def lift_1230b7(cpu):
             # 0x1231ED  66bace03       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3CE) & 0xFFFF)
             # 0x1231F1  66ef           in/out
-            interp_one32(cpu, 0x1231F1)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             bb = 28
         elif bb == 28:
             # 0x1231F3  8b0d5ee31400   mov
@@ -579,7 +579,7 @@ def lift_1230b7(cpu):
             bb = 29 if cpu._cond(0x5) else 30
         elif bb == 30:
             # 0x123270  61             popad
-            interp_one32(cpu, 0x123270)  # (interpreter fallback)
+            cpu._popa(4)
             # 0x123271  8be5           mov
             r[4] = (r[5]) & 0xFFFFFFFF
             # 0x123273  5d             pop
@@ -605,7 +605,7 @@ def lift_1230b7(cpu):
             # 0x123289  66bac403       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3C4) & 0xFFFF)
             # 0x12328D  66ef           in/out
-            interp_one32(cpu, 0x12328D)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             bb = 33
         elif bb == 33:
             # 0x12328F  803d84e3140040 grp1
@@ -625,7 +625,7 @@ def lift_1230b7(cpu):
             # 0x1232A3  66bace03       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3CE) & 0xFFFF)
             # 0x1232A7  66ef           in/out
-            interp_one32(cpu, 0x1232A7)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             bb = 35
         elif bb == 35:
             # 0x1232A9  8b0d5ee31400   mov
@@ -779,7 +779,7 @@ def lift_1230b7(cpu):
             bb = 36 if cpu._cond(0x5) else 37
         elif bb == 37:
             # 0x12331D  61             popad
-            interp_one32(cpu, 0x12331D)  # (interpreter fallback)
+            cpu._popa(4)
             # 0x12331E  8be5           mov
             r[4] = (r[5]) & 0xFFFFFFFF
             # 0x123320  5d             pop

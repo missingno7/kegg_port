@@ -8,7 +8,7 @@ form for yet -- they are exact, but they are also the to-do list.
 """
 from __future__ import annotations
 
-from dos_re.cpu import CF, ZF
+from dos_re.cpu import CF, DF, IF, ZF
 from dos_re.lift.runtime32 import (LiftRuntimeError, call_linked32,
                                    check_signature, emulate_call32,
                                    emulate_int32, interp_one32)
@@ -1074,7 +1074,8 @@ def lift_1191a3(cpu):
             _o = (sb["ss"] + r[5] + -0xC) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1195E9  c9             leave
-            interp_one32(cpu, 0x1195E9)  # (interpreter fallback)
+            r[4] = r[5]
+            r[5] = (cpu.pop(4)) & 0xFFFFFFFF
             # 0x1195EA  5f             pop
             r[7] = (cpu.pop(4)) & 0xFFFFFFFF
             # 0x1195EB  5e             pop

@@ -8,7 +8,7 @@ form for yet -- they are exact, but they are also the to-do list.
 """
 from __future__ import annotations
 
-from dos_re.cpu import CF, ZF
+from dos_re.cpu import CF, DF, IF, ZF
 from dos_re.lift.runtime32 import (LiftRuntimeError, call_linked32,
                                    check_signature, emulate_call32,
                                    emulate_int32, interp_one32)
@@ -26,7 +26,7 @@ def lift_122a9c(cpu):
     for _guard in range(MAX_ITERATIONS):
         if bb == 0:
             # 0x122A9C  60             pushad
-            interp_one32(cpu, 0x122A9C)  # (interpreter fallback)
+            cpu._pusha(4)
             # 0x122A9D  8d6c241c       lea
             r[5] = ((r[4] + 0x1C)) & 0xFFFFFFFF
             # 0x122AA1  803d84e3140040 grp1
@@ -46,7 +46,7 @@ def lift_122a9c(cpu):
             # 0x122AB5  66bace03       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3CE) & 0xFFFF)
             # 0x122AB9  66ef           in/out
-            interp_one32(cpu, 0x122AB9)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             bb = 2
         elif bb == 2:
             # 0x122ABB  0fb71d167b1400 movzx/sx
@@ -212,7 +212,7 @@ def lift_122a9c(cpu):
             # 0x122B78  66bac403       mov
             r[2] = (r[2] & 0xFFFF0000) | ((0x3C4) & 0xFFFF)
             # 0x122B7C  66ef           in/out
-            interp_one32(cpu, 0x122B7C)  # (interpreter fallback)
+            cpu.port_writer(cpu, (r[2] & 0xFFFF), r[0] & 0xFFFF, 16) if cpu.port_writer else None
             # 0x122B7E  a160831400     mov
             _o = (sb["ds"] + 0x148360) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -226,7 +226,7 @@ def lift_122a9c(cpu):
             _o = (sb["ds"] + 0x14E2EC) & 0xFFFFFFFF
             mem.w32(_o, r[0])
             # 0x122B92  61             popad
-            interp_one32(cpu, 0x122B92)  # (interpreter fallback)
+            cpu._popa(4)
             # 0x122B93  c3             ret
             cpu.eip = cpu.pop(4)
             return

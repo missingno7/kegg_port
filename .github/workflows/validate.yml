@@ -24,8 +24,8 @@ jobs:
         run: python dos_re/tools/lint.py
       - name: Recovered layer stays dos_re-free (pure-layer audit)
         run: python dos_re/tools/audit_layers.py kegg/recovered kegg/bridge
-      - name: Install pytest
-        run: pip install pytest pytest-xdist
+      - name: Install dependencies (numpy is a first-class dos_re core dep)
+        run: pip install numpy pytest pytest-xdist
       - name: Framework suite resolves through this repo's pythonpath wiring
         run: python -m pytest dos_re/tests -q -n auto
       - name: Port suite (game-free; KE.EXE-dependent tests skip)

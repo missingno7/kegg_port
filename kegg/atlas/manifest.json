@@ -1,0 +1,32 @@
+{
+  "format_version": 1,
+  "index_digest": "570d7e99197d96e43e264e9aaad8db207de2e64bd866ae7061d4e437b72684e8",
+  "product_roots": {},
+  "program_id": "krypton-egg:1",
+  "sources": [
+    {
+      "identity": "replay:012420b33f20605f6b6e4ad2b55efeec6a596b43f07064648b6deff04d907dde",
+      "kind": "replay",
+      "path": "sources/replay-f2412f9a124a53fa5890.json",
+      "source_digest": "5d6904cb4b13f329fbdeb4599710520b5aeb000f3541cecd4012dc65490b20c9"
+    },
+    {
+      "identity": "replay:85c0c4c479f166080d76fbd511d82dd22f4c29e333ed08f1d8994c55ffb57983",
+      "kind": "replay",
+      "path": "sources/replay-7dd47b6706f43c5e578c.json",
+      "source_digest": "3d6a9ea3c2c4a19ecc8ea7f64eea0bad9cca4d67dfcdac8627a2de89f9f1dd00"
+    },
+    {
+      "identity": "replay:dcf359a118e05f5a61ff584a5611564a73be54a684ffc1ff0f7fc0155ffeaa23",
+      "kind": "replay",
+      "path": "sources/replay-6407448d3298066a9253.json",
+      "source_digest": "a2fb2d30f7637961277f56e1505870b727a7555dcb57472efe4c31d4799c5b38"
+    },
+    {
+      "identity": "replay:f7f3ad886ab32d78e07925e20897f414f48f91b206dfa6f6b1feae7824d228f7",
+      "kind": "replay",
+      "path": "sources/replay-0de1a7e8edf21e4ca7d8.json",
+      "source_digest": "9429c2dab8004ae4e8c2c602bad7ae42be5f7c69875f36e7ee4c5842935ae8f9"
+    }
+  ]
+}

@@ -17,36 +17,19 @@ Usage:
     python scripts/play.py --record-replay NAME   # record a ReplayArtifact
     python scripts/play.py --play-replay <dir>    # replay it deterministically
 
-Run under PyPy: the 386 interpreter reaches ~11 Minstr/s under PyPy (>1x real
-time, smooth audio) versus ~0.8 Minstr/s under CPython (~0.08x — the Sound
-Blaster PCM starves and stutters).  Invoked with plain ``python`` (CPython),
-this script re-execs itself under PyPy when one is on PATH; set
-``KEGG_NO_REEXEC=1`` to stay on the current interpreter.
+Runs on whatever interpreter you launch it with — plain CPython is a
+first-class target (it is what the mobile/native ports run on; iOS has no PyPy
+JIT).  The path to real-time on CPython is native rewriting: the recovered
+overrides and the lifted-vmless graph (``--fast``) replace interpreted work
+with native code, and the native sound island moves audio off the interpreted
+path.  PyPy still gives the fastest pure-interpreter runs if you prefer it.
 """
 from __future__ import annotations
 
-import os
-import platform
-import shutil
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _ensure_pypy() -> None:
-    """Re-exec under PyPy for real-time speed (smooth audio) when launched on
-    CPython.  A no-op under PyPy, when opted out, or when no PyPy is found."""
-    if platform.python_implementation() == "PyPy" or os.environ.get("KEGG_NO_REEXEC"):
-        return
-    pypy = shutil.which("pypy3.11") or shutil.which("pypy3") or shutil.which("pypy")
-    if not pypy:
-        print("NOTE: running under CPython (~0.08x real time — audio will stutter). "
-              "Install PyPy 3.11 for smooth play.", file=sys.stderr)
-        return
-    os.environ["KEGG_NO_REEXEC"] = "1"          # guard against a re-exec loop
-    print(f"[play] re-exec under PyPy for real-time speed: {pypy}", file=sys.stderr)
-    os.execv(pypy, [pypy, str(Path(__file__).resolve()), *sys.argv[1:]])
 
 
 sys.path.insert(0, str(ROOT))              # the kegg adapter package
@@ -78,5 +61,4 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    _ensure_pypy()
     raise SystemExit(main())

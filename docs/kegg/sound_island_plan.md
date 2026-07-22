@@ -195,3 +195,19 @@ recover a mixer that does not exist.
 NEXT: disassemble/lift the seven API functions (all small), name them, write
 recovered/sound.py (stream player + API semantics), then the native backend
 behind the kept coroutine shell.
+
+**S2 COMPLETE — the engine model (all functions decoded):**
+`play_sample(id)`=0x11C20D: 16-byte sample-table entry at [0x14E270]+id*16 =
+{ptr,len,x,y} -> `queue_stream(ptr,len,x,y)`=0x11C14B (priority gates; if idle
+-> live regs [0x147444..50] + `start_stream`; else one-deep pending slot
+[0x147434..40]).  `play_sample_computed(a,b)`=0x11C26A (id via 0x11DD53).
+`start_stream`=0x11C321: copy DMA base [0x14E26C]->[0x147DB4], arm driver
+(0x12133F), half offset [0x147430]=0, block size [0x147458]=[0x147420]>>1
+(1280/2=640), program count (0x121377), PRE-FILL BOTH HALVES (0x11C3FB twice
+with 0x11C621 between).  `stop_sound`=0x11C3AB (22 callers = screen changes):
+zero [0x147448]/[0x147458], mask driver (0x121358/0x121365), clear [0x14742C].
+Driver primitives at 0x1213xx.  ISR per block: ack -> 0x11C3FB streams the
+just-played half -> DSP re-arm.  This is the complete semantic contract for
+recovered/sound.py; the native backend's faithful mode reproduces exactly
+this state machine (incl. SFX-takes-stream), and the stereo enhancement runs
+music+SFX as separate host voices on top.

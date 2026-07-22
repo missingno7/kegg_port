@@ -36,14 +36,16 @@ def test_rects_overlap_override_chain_binds_and_verifies():
     rt = create_game_runtime(str(EXE), install_replacements=False)
     assert RECTS_OVERLAP_EIP not in rt.cpu.replacement_hooks
 
-    # 2. the 3.0 plan selects the authored override for this image
+    # 2. the 3.0 plan selects the authored overrides for this image; rects_overlap
+    #    is one of the full recovered catalog, bound to its stable target id.
     image = image_identity(str(EXE))
     plan = authored_plan(image)
     target = function_id(image, RECTS_OVERLAP_EIP)
-    assert [b.implementation_id for b in plan.bindings] == ["rects_overlap"]
-    assert next(iter(b.target for b in plan.bindings)) == target
+    by_id = {b.implementation_id: b for b in plan.bindings}
+    assert "rects_overlap" in by_id
+    assert by_id["rects_overlap"].target == target
 
-    # 3. binding the plan runs the backend adapter -> installs the CPU seam
+    # 3. binding the plan runs the backend adapters -> installs every CPU seam
     GameFrontend(ROOT).bind_execution_plan(rt, plan)
     assert rt.cpu.replacement_hooks.get(RECTS_OVERLAP_EIP) is not None
     assert rt.cpu.hook_names.get(RECTS_OVERLAP_EIP) == "rects_overlap"

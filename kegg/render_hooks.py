@@ -34,6 +34,7 @@ SCREEN_W = 0x14E35E
 APERTURE = 0xA0000
 
 BLIT2 = 0x1225FF   # RLE masked page-to-page copy (restore background under sprites)
+BLIT_QUEUE = 0x122288   # deferred-draw queue writer, falls into the blitter
 G_2E0 = 0x14E2E0   # source page base (logical)
 G_2E4 = 0x14E2E4   # dest page base (logical)
 G_370 = 0x148370   # page delta (source - dest), added before the /4 addressing
@@ -222,6 +223,33 @@ def _blit_vclip(cpu):
     cpu.eip = cpu.pop(4)
 
 
+def blit_queue_entry_122288(cpu):
+    """Deferred-draw queue writer (0x122288) + the blitter it falls into.
+
+    The original writes a 0x14-byte draw record (bump-allocated at
+    [0x148360]) and falls straight into the sprite blitter at 0x1222D1.  The
+    old composition left this prologue INTERPRETED on purpose (harmless on
+    PyPy); on CPython its ~273 dispatched instructions per blit are the
+    single largest remaining frame cost, so the whole entry is one native
+    operation now: the record write below (from the oracle-verified
+    lift_122288 prologue, 0x122288..0x1222D0), then the recovered blitter,
+    which reproduces the full register/flag/memory exit itself.
+    """
+    mem = cpu.mem
+    r = cpu.r
+    rec = mem.r32(0x148360)
+    mem.w32(0x148360, (rec + 0x14) & 0xFFFFFFFF)
+    mem.w16(rec, 0x5)                              # record type
+    mem.w16(rec + 0x4, r[3] & 0xFFFF)              # bx
+    mem.w16(rec + 0x2, r[5] & 0xFFFF)              # bp
+    mem.w32(rec + 0x6, (mem.r16((r[6] - 2) & 0xFFFFFFFF) + r[6]) & 0xFFFFFFFF)
+    mem.w32(rec + 0xA, (r[7] - mem.r32(G_2E4)) & 0xFFFFFFFF)
+    mem.w16(rec + 0xE, mem.r32(G_380) & 0xFFFF)    # v-clip
+    mem.w16(rec + 0x10, mem.r32(G_388) & 0xFFFF)   # h-clip
+    mem.w16(rec + 0x12, mem.r32(G_378) & 0xFFFF)   # skip rows
+    blit_1222d1(cpu)
+
+
 def blit2_1225ff(cpu):
     """RLE masked page-to-page copy (0x1225FF) — the sprite-erase blitter.
 
@@ -270,8 +298,16 @@ def blit2_1225ff(cpu):
                 eax = (al + edi) & 0xFFFFFFFF
                 src_ap = ((delta + edi) & 0xFFFFFFFF) >> 2
                 dst_ap = edi >> 2
-                for i in range(n):
-                    mem.w8((dst_ap + i) & 0xFFFFFFFF, mem.r8((src_ap + i) & 0xFFFFFFFF))
+                vga = mem.vga
+                if (vga is not None and 0xA0000 <= src_ap and src_ap + n <= 0xB0000
+                        and 0xA0000 <= dst_ap and dst_ap + n <= 0xB0000):
+                    # One slice op per run instead of n round-trips through the
+                    # aperture model — byte-exact (vga.bulk_copy) and the
+                    # difference between 5 fps and playable on CPython.
+                    vga.bulk_copy(src_ap - 0xA0000, dst_ap - 0xA0000, n)
+                else:
+                    for i in range(n):
+                        mem.w8((dst_ap + i) & 0xFFFFFFFF, mem.r8((src_ap + i) & 0xFFFFFFFF))
                 esi = (src_ap + n) & 0xFFFFFFFF
                 edi = (dst_ap + n) & 0xFFFFFFFF
                 ecx = eax                            # xchg: dest advances by the run

@@ -49,7 +49,8 @@ from kegg.logic_hooks import (anim_timers_118345, build_draw_list_1183b1,
                               step_sequence_11b17e, swap_ball_y_11eda0,
                               swap_display_pages_11c886,
                               update_frame_timers_119e54)
-from kegg.render_hooks import blit_1222d1, blit2_1225ff
+from kegg.render_hooks import (blit_1222d1, blit2_1225ff,
+                               blit_queue_entry_122288)
 
 # Property tags carried on every faithful DOS-memory-backed override.
 _FAITHFUL = frozenset({"cpu-adapted", "dos-memory-backed"})
@@ -84,6 +85,10 @@ _OVERRIDES: tuple[_Override, ...] = (
     # rendering island (Mode X planar sprite blitters)
     _leaf(0x1222D1, decode_plane_pass, blit_1222d1, "blit_planar_1222d1"),
     _leaf(0x1225FF, blit2_1225ff, blit2_1225ff, "blit_erase_1225ff"),
+    # the queue-writer entry that falls into the blitter: one native op per
+    # draw (the interpreted prologue was the largest CPython frame cost)
+    _leaf(0x122288, decode_plane_pass, blit_queue_entry_122288,
+          "blit_queue_entry_122288"),
     # gameplay-logic leaves
     _leaf(0x118345, update_anim_timers, anim_timers_118345, "anim_timers_118345"),
     _leaf(0x1183B1, build_draw_list, build_draw_list_1183b1, "build_draw_list_1183b1"),

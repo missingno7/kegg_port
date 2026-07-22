@@ -1,5 +1,6 @@
-# Validate the template: the docs an agent boots from, the skeleton it copies, and the pinned
-# framework it builds on. No game assets exist in CI — everything here is game-free by construction.
+# Validate the Krypton Egg port: docs resolve, the recovered layer stays pure (dos_re-free),
+# and both the pinned framework suite and the port's own tests pass. No game assets exist in
+# CI -- KE.EXE is absent by construction, so every KE.EXE-dependent test skips itself.
 name: validate
 
 on:
@@ -17,15 +18,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Doc links resolve (the boot sequence must not strand an agent)
+      - name: Doc links resolve (no boot sequence strands an agent)
         run: python dos_re/tools/check_doc_links.py . --exclude dos_re
-      - name: Adapter skeleton compiles
-        run: python -m compileall -q examples/adapter_skeleton
-      - name: Adapter skeleton passes the pure-layer audit (as shipped)
-        run: python dos_re/tools/audit_layers.py examples/adapter_skeleton/recovered
+      - name: Lint
+        run: python dos_re/tools/lint.py
+      - name: Recovered layer stays dos_re-free (pure-layer audit)
+        run: python dos_re/tools/audit_layers.py kegg/recovered kegg/bridge
+      - name: Install pytest
+        run: pip install pytest pytest-xdist
       - name: Framework suite resolves through this repo's pythonpath wiring
-        run: |
-          pip install pytest pytest-xdist
-          python -m pytest dos_re/tests -q -n auto
+        run: python -m pytest dos_re/tests -q -n auto
+      - name: Port suite (game-free; KE.EXE-dependent tests skip)
+        run: python -m pytest tests -q
       - name: Full-lifecycle integration (tiny_frame_game against the pinned submodule)
         run: python dos_re/examples/tiny_frame_game/walkthrough.py

@@ -10,6 +10,7 @@ live viewer / headless / replay lifecycle.
 
 Usage:
     python scripts/play.py                        # live viewer
+    python scripts/play.py --fast                 # + lifted-vmless acceleration
     python scripts/play.py --headless --steps N   # deterministic smoke run
     python scripts/play.py --plan-only            # print the bound override plan
     python scripts/play.py --snapshot <dir>       # resume a saved snapshot

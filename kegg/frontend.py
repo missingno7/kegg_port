@@ -17,15 +17,30 @@ from dos_re.execution import ImplementationCatalog, ProgramCoverage
 from dos_re.pm_backend import PMFrontend
 
 from kegg.identity import PROGRAM, image_identity
-from kegg.overrides import (authored_catalog, authored_coverage, authored_ids)
+from kegg.overrides import (authored_catalog, authored_coverage, selected_ids)
 
 
 class KryptonEggFrontend(PMFrontend):
-    """PM frontend whose plan carries the recovered override catalog."""
+    """PM frontend whose plan carries the recovered override catalog.
+
+    ``--fast`` additionally selects the lifted-vmless hot-set graph
+    (``kegg.overrides`` generated entry): a byte-exact accelerator that skips
+    the interpreter's fetch/decode/dispatch on the measured worst-case hot
+    game logic (~2x worst-case frame time on CPython, the mobile-relevant
+    path).  Off by default -- pure authored overrides -- so nothing changes
+    unless asked.
+    """
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._image_cache: tuple[str, object] | None = None
+
+    def add_arguments(self, parser) -> None:
+        super().add_arguments(parser)
+        parser.add_argument(
+            "--fast", action="store_true",
+            help="also bind the lifted-vmless hot-set graph (byte-exact "
+                 "native acceleration of the hottest game logic)")
 
     def _image(self, args):
         # image_identity content-addresses KE.EXE; cache per exe path so
@@ -41,13 +56,16 @@ class KryptonEggFrontend(PMFrontend):
         return str(PROGRAM)
 
     def execution_implementations(self, args) -> ImplementationCatalog:
-        return authored_catalog(self._image(args))
+        return authored_catalog(self._image(args),
+                                generated_graph=getattr(args, "fast", False))
 
     def execution_coverage(self, args) -> ProgramCoverage:
-        return authored_coverage(self._image(args))
+        return authored_coverage(self._image(args),
+                                 generated_graph=getattr(args, "fast", False))
 
     def execution_configuration(self, args):
         # Keep the base configuration (bootstrap provider, requested
         # capabilities, profile policy) and add our override selection.
         config = super().execution_configuration(args)
-        return replace(config, selected_overrides=authored_ids())
+        return replace(config, selected_overrides=selected_ids(
+            generated_graph=getattr(args, "fast", False)))

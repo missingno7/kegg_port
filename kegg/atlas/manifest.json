@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "index_digest": "570d7e99197d96e43e264e9aaad8db207de2e64bd866ae7061d4e437b72684e8",
+  "index_digest": "4151c9451d6e666f5037b3578e6233c33ca93cbd44e4210e9af056abe9a8945b",
   "product_roots": {},
   "program_id": "krypton-egg:1",
   "sources": [
@@ -9,6 +9,12 @@
       "kind": "replay",
       "path": "sources/replay-f2412f9a124a53fa5890.json",
       "source_digest": "5d6904cb4b13f329fbdeb4599710520b5aeb000f3541cecd4012dc65490b20c9"
+    },
+    {
+      "identity": "replay:4867a8801afc2a58278938e46a064bd8ed7d7253fef8baf07f8b5fe9c405bab1",
+      "kind": "replay",
+      "path": "sources/replay-17f53f509b2604a9aceb.json",
+      "source_digest": "4b906d65a30a0e3dd6a5e22cb833fbf6dc838e32829119ab6a561fe8976b819f"
     },
     {
       "identity": "replay:85c0c4c479f166080d76fbd511d82dd22f4c29e333ed08f1d8994c55ffb57983",

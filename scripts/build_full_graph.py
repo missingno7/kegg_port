@@ -55,9 +55,11 @@ def _load_manifest() -> dict:
 
 
 def _excluded(manifest: dict) -> set[int]:
-    """Everything kept out of the graph: convergence waits + crashes, and the
-    authored override EIPs (authored adapters win at those seams)."""
-    runtime = manifest["excluded_waits"] + manifest["excluded_crashes"]
+    """Everything kept out of the graph: convergence waits + crashes, the
+    replay-driver observation seams (frame clock), and the authored override
+    EIPs (authored adapters win at those seams)."""
+    runtime = (manifest["excluded_waits"] + manifest["excluded_crashes"]
+               + manifest.get("reserved_seams", []))
     return {int(x, 16) for x in runtime} | set(OVERRIDE_EIPS)
 
 

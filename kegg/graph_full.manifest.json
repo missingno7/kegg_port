@@ -27,8 +27,12 @@
     "0x125722"
   ],
   "excluded_crashes_note": "Environment-wait loops (only IRQ servicing exits them) and stack-switching / computed-transfer routines (coroutine context save/restore, indirect dispatch) cannot be lift-and-linked. 0x1256EA/0x125722/0x1245AD are KE's sound-coroutine context primitives (independently confirmed by the sound-island hand-analysis). These stay interpreted or become hand-recovered overrides.",
+  "reserved_seams": [
+    "0x119D40"
+  ],
+  "reserved_seams_note": "Replay/verification DRIVER observation seams that must stay interpreted so the runtime can instrument them. 0x119D40 is the frame-tick routine the replay FrameClock replaces with its per-frame tick; if lifted, a linked caller dispatches the tick under call_linked32's near-ret contract (which the tick's interp-one-and-continue violates) and the replay stalls immediately. Free-running convergence cannot discover these (it uses no FrameClock); they are found only under replay-driven execution.",
   "liftable_census": 497,
-  "graph_functions": 463,
+  "graph_functions": 462,
   "graph_eips": [
     "0x123FA3",
     "0x11C20D",
@@ -39,7 +43,6 @@
     "0x12085A",
     "0x122F9C",
     "0x1211DE",
-    "0x119D40",
     "0x11C3AB",
     "0x128FDA",
     "0x121420",

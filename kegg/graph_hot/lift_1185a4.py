@@ -191,7 +191,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118668  f6401102       grp3
-            interp_one32(cpu, 0x118668)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x11) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x2)
             # 0x11866C  7439           jcc
             bb = 10 if cpu._cond(0x4) else 5
         elif bb == 5:
@@ -210,7 +211,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118686  f6400120       grp3
-            interp_one32(cpu, 0x118686)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x20)
             # 0x11868A  750e           jcc
             bb = 7 if cpu._cond(0x5) else 6
         elif bb == 6:
@@ -248,7 +250,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1186AC  f6400110       grp3
-            interp_one32(cpu, 0x1186AC)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x10)
             # 0x1186B0  7415           jcc
             bb = 12 if cpu._cond(0x4) else 11
         elif bb == 11:
@@ -296,7 +299,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1186ED  f6401101       grp3
-            interp_one32(cpu, 0x1186ED)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x11) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1)
             # 0x1186F1  7523           jcc
             bb = 15 if cpu._cond(0x5) else 14
         elif bb == 14:
@@ -353,7 +357,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x11872E  f60002         grp3
-            interp_one32(cpu, 0x11872E)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0]) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x2)
             # 0x118731  7548           jcc
             bb = 20 if cpu._cond(0x5) else 16
         elif bb == 16:
@@ -370,7 +375,8 @@ def lift_1185a4(cpu):
             bb = 18 if cpu._cond(0x4) else 17
         elif bb == 17:
             # 0x118742  f605fe7b140001 grp3
-            interp_one32(cpu, 0x118742)  # (interpreter fallback)
+            _o = (sb["ds"] + 0x147BFE) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1)
             # 0x118749  750a           jcc
             bb = 19 if cpu._cond(0x5) else 18
         elif bb == 18:
@@ -378,7 +384,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118750  f60008         grp3
-            interp_one32(cpu, 0x118750)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0]) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x8)
             # 0x118753  7426           jcc
             bb = 20 if cpu._cond(0x4) else 19
         elif bb == 19:
@@ -610,7 +617,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0x8) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x11885C  f7da           grp3
-            interp_one32(cpu, 0x11885C)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x11885E  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -638,7 +645,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0xC) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118880  f7da           grp3
-            interp_one32(cpu, 0x118880)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118882  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -770,7 +777,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118931  f60008         grp3
-            interp_one32(cpu, 0x118931)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0]) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x8)
             # 0x118934  7526           jcc
             bb = 51 if cpu._cond(0x5) else 48
         elif bb == 48:
@@ -778,7 +786,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x11893B  f60040         grp3
-            interp_one32(cpu, 0x11893B)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0]) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x40)
             # 0x11893E  741a           jcc
             bb = 50 if cpu._cond(0x4) else 49
         elif bb == 49:
@@ -867,7 +876,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x11898A  f6401102       grp3
-            interp_one32(cpu, 0x11898A)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x11) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x2)
             # 0x11898E  7529           jcc
             bb = 55 if cpu._cond(0x5) else 54
         elif bb == 54:
@@ -908,7 +918,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1189BE  f6400120       grp3
-            interp_one32(cpu, 0x1189BE)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x20)
             # 0x1189C2  7509           jcc
             bb = 57 if cpu._cond(0x5) else 56
         elif bb == 56:
@@ -928,7 +939,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1189D2  f60080         grp3
-            interp_one32(cpu, 0x1189D2)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0]) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x80)
             # 0x1189D5  740c           jcc
             bb = 59 if cpu._cond(0x4) else 58
         elif bb == 58:
@@ -1000,7 +1012,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118A1B  f6400102       grp3
-            interp_one32(cpu, 0x118A1B)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x2)
             # 0x118A1F  740d           jcc
             bb = 65 if cpu._cond(0x4) else 64
         elif bb == 64:
@@ -1102,7 +1115,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0x8) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118A81  f7da           grp3
-            interp_one32(cpu, 0x118A81)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118A83  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1133,7 +1146,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0x8) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118AA0  f7da           grp3
-            interp_one32(cpu, 0x118AA0)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118AA2  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1149,7 +1162,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0xC) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118AB2  f7da           grp3
-            interp_one32(cpu, 0x118AB2)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118AB4  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1182,7 +1195,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0xC) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118ADA  f7da           grp3
-            interp_one32(cpu, 0x118ADA)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118ADC  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1330,7 +1343,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118B8A  f6401102       grp3
-            interp_one32(cpu, 0x118B8A)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x11) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x2)
             # 0x118B8E  0f8571030000   jcc
             bb = 142 if cpu._cond(0x5) else 87
         elif bb == 87:
@@ -1481,12 +1495,14 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118C4F  f6400110       grp3
-            interp_one32(cpu, 0x118C4F)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x10)
             # 0x118C53  0f856d000000   jcc
             bb = 101 if cpu._cond(0x5) else 93
         elif bb == 93:
             # 0x118C59  f605248e140010 grp3
-            interp_one32(cpu, 0x118C59)  # (interpreter fallback)
+            _o = (sb["ds"] + 0x148E24) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x10)
             # 0x118C60  7414           jcc
             bb = 95 if cpu._cond(0x4) else 94
         elif bb == 94:
@@ -1497,7 +1513,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0xC) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118C6A  f7da           grp3
-            interp_one32(cpu, 0x118C6A)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118C6C  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1514,7 +1530,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0x8) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118C7E  f7da           grp3
-            interp_one32(cpu, 0x118C7E)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118C80  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -1552,12 +1568,14 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB8) & 0xFFFFFFFF
             mem.w32(_o, 0x2)
             # 0x118CA8  f605248e140001 grp3
-            interp_one32(cpu, 0x118CA8)  # (interpreter fallback)
+            _o = (sb["ds"] + 0x148E24) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1)
             # 0x118CAF  7406           jcc
             bb = 100 if cpu._cond(0x4) else 99
         elif bb == 99:
             # 0x118CB1  f71db8dd1400   grp3
-            interp_one32(cpu, 0x118CB1)  # (interpreter fallback)
+            _o = (sb["ds"] + 0x14DDB8) & 0xFFFFFFFF
+            cpu._grp3_op(3, False, _o, 4, 0x0)
             bb = 100
         elif bb == 100:
             # 0x118CB7  c7051c8e140001000000 mov
@@ -1816,7 +1834,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118DDA  6bc00a         imul
-            interp_one32(cpu, 0x118DDA)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118DDD  807c28c400     grp1
             _o = (sb["ds"] + r[5] + r[0] + -0x3C) & 0xFFFFFFFF
             _a = mem.r8(_o)
@@ -1831,7 +1850,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118DE8  6bc00a         imul
-            interp_one32(cpu, 0x118DE8)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118DEB  ff7428ca       push
             _o = (sb["ds"] + r[5] + r[0] + -0x36) & 0xFFFFFFFF
             cpu.push(mem.r32(_o), 4)
@@ -1840,7 +1860,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118DF3  6bc00a         imul
-            interp_one32(cpu, 0x118DF3)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118DF6  ff7428c6       push
             _o = (sb["ds"] + r[5] + r[0] + -0x3A) & 0xFFFFFFFF
             cpu.push(mem.r32(_o), 4)
@@ -1859,7 +1880,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E08  6bc00a         imul
-            interp_one32(cpu, 0x118E08)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E0B  885428c5       mov
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             mem.w8(_o, cpu.reg(2, 1))
@@ -1868,7 +1890,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E13  6bc00a         imul
-            interp_one32(cpu, 0x118E13)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E16  807c28c500     grp1
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             _a = mem.r8(_o)
@@ -1896,7 +1919,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E27  6bc00a         imul
-            interp_one32(cpu, 0x118E27)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E2A  807c28c503     grp1
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             _a = mem.r8(_o)
@@ -1914,7 +1938,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E3B  6bc00a         imul
-            interp_one32(cpu, 0x118E3B)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E3E  c64428c500     mov
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             mem.w8(_o, 0x0)
@@ -1933,7 +1958,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118E52  f6400110       grp3
-            interp_one32(cpu, 0x118E52)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x10)
             # 0x118E56  0f85a9000000   jcc
             bb = 142 if cpu._cond(0x5) else 121
         elif bb == 121:
@@ -1973,7 +1999,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E77  6bc00a         imul
-            interp_one32(cpu, 0x118E77)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E7A  807c28c500     grp1
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             _a = mem.r8(_o)
@@ -1988,7 +2015,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118E85  6bc00a         imul
-            interp_one32(cpu, 0x118E85)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118E88  8a4428c4       mov
             _o = (sb["ds"] + r[5] + r[0] + -0x3C) & 0xFFFFFFFF
             cpu.set_reg(0, 1, mem.r8(_o))
@@ -2060,7 +2088,8 @@ def lift_1185a4(cpu):
             _v = mem.r8(_o)
             r[0] = (_v) & 0xFFFFFFFF
             # 0x118EBF  6bc00a         imul
-            interp_one32(cpu, 0x118EBF)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 10)
             # 0x118EC2  807c28c501     grp1
             _o = (sb["ds"] + r[5] + r[0] + -0x3B) & 0xFFFFFFFF
             _a = mem.r8(_o)
@@ -2100,7 +2129,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0x8) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118EE3  f7da           grp3
-            interp_one32(cpu, 0x118EE3)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118EE5  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -2125,7 +2154,7 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + r[0] + 0xC) & 0xFFFFFFFF
             r[2] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118EFB  f7da           grp3
-            interp_one32(cpu, 0x118EFB)  # (interpreter fallback)
+            cpu._grp3_op(3, True, 2, 4, 0x0)
             # 0x118EFD  a1b4dd1400     mov
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -2149,7 +2178,8 @@ def lift_1185a4(cpu):
             _o = (sb["ds"] + 0x14DDB4) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x118F19  f6401101       grp3
-            interp_one32(cpu, 0x118F19)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x11) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1)
             # 0x118F1D  740d           jcc
             bb = 144 if cpu._cond(0x4) else 143
         elif bb == 143:

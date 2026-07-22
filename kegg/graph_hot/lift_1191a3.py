@@ -109,7 +109,8 @@ def lift_1191a3(cpu):
             # 0x1191E9  c1f803         grp2
             cpu._shift(7, True, 0, 4, 0x03)
             # 0x1191EC  6bc012         imul
-            interp_one32(cpu, 0x1191EC)  # (interpreter fallback)
+            _a = ((r[0]) - 0x100000000 if (r[0]) & 0x80000000 else (r[0]))
+            cpu._imul_store(0, 4, _a, 18)
             # 0x1191EF  8945f8         mov
             _o = (sb["ss"] + r[5] + -0x8) & 0xFFFFFFFF
             mem.w32(_o, r[0])
@@ -537,7 +538,8 @@ def lift_1191a3(cpu):
             _o = (sb["ds"] + 0x14DE5C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1193BE  f6400110       grp3
-            interp_one32(cpu, 0x1193BE)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x10)
             # 0x1193C2  742d           jcc
             bb = 35 if cpu._cond(0x4) else 34
         elif bb == 34:

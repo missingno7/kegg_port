@@ -112,7 +112,8 @@ def lift_122a9c(cpu):
             _o = (sb["ds"] + 0x14E35E) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x122B07  f7650c         grp3
-            interp_one32(cpu, 0x122B07)  # (interpreter fallback)
+            _o = (sb["ss"] + r[5] + 0xC) & 0xFFFFFFFF
+            cpu._grp3_op(4, False, _o, 4, 0x0)
             # 0x122B0A  03f8           add
             _a = r[7]
             _b = r[0]

@@ -413,7 +413,7 @@ def lift_1230b7(cpu):
             _o = (sb["ss"] + r[5] + 0x10) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1231FC  f7e1           grp3
-            interp_one32(cpu, 0x1231FC)  # (interpreter fallback)
+            cpu._grp3_op(4, True, 1, 4, 0x0)
             # 0x1231FE  8bf0           mov
             r[6] = (r[0]) & 0xFFFFFFFF
             # 0x123200  8b5d08         mov
@@ -468,7 +468,7 @@ def lift_1230b7(cpu):
             _o = (sb["ss"] + r[5] + 0x24) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x123233  f7e1           grp3
-            interp_one32(cpu, 0x123233)  # (interpreter fallback)
+            cpu._grp3_op(4, True, 1, 4, 0x0)
             # 0x123235  034520         add
             _o = (sb["ss"] + r[5] + 0x20) & 0xFFFFFFFF
             _a = r[0]
@@ -635,7 +635,7 @@ def lift_1230b7(cpu):
             _o = (sb["ss"] + r[5] + 0x10) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1232B2  f7e1           grp3
-            interp_one32(cpu, 0x1232B2)  # (interpreter fallback)
+            cpu._grp3_op(4, True, 1, 4, 0x0)
             # 0x1232B4  8b750c         mov
             _o = (sb["ss"] + r[5] + 0xC) & 0xFFFFFFFF
             r[6] = (mem.r32(_o)) & 0xFFFFFFFF
@@ -697,7 +697,7 @@ def lift_1230b7(cpu):
             _o = (sb["ss"] + r[5] + 0x24) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x1232EC  f7e1           grp3
-            interp_one32(cpu, 0x1232EC)  # (interpreter fallback)
+            cpu._grp3_op(4, True, 1, 4, 0x0)
             # 0x1232EE  034520         add
             _o = (sb["ss"] + r[5] + 0x20) & 0xFFFFFFFF
             _a = r[0]

@@ -79,7 +79,8 @@ def lift_117bf4(cpu):
             _o = (sb["ds"] + 0x14DD6C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x117C33  f6401c20       grp3
-            interp_one32(cpu, 0x117C33)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1C) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x20)
             # 0x117C37  7422           jcc
             bb = 6 if cpu._cond(0x4) else 5
         elif bb == 5:
@@ -114,7 +115,8 @@ def lift_117bf4(cpu):
             _o = (sb["ds"] + 0x14DD6C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x117C60  f6401c1e       grp3
-            interp_one32(cpu, 0x117C60)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1C) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1E)
             # 0x117C64  7523           jcc
             bb = 8 if cpu._cond(0x5) else 7
         elif bb == 7:
@@ -250,7 +252,8 @@ def lift_117bf4(cpu):
             _o = (sb["ds"] + 0x14DD6C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x117CD8  f6401c40       grp3
-            interp_one32(cpu, 0x117CD8)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1C) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x40)
             # 0x117CDC  7408           jcc
             bb = 13 if cpu._cond(0x4) else 12
         elif bb == 12:
@@ -270,7 +273,8 @@ def lift_117bf4(cpu):
             _o = (sb["ds"] + 0x14DD6C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x117CEB  f6401d01       grp3
-            interp_one32(cpu, 0x117CEB)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1D) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x1)
             # 0x117CEF  740a           jcc
             bb = 15 if cpu._cond(0x4) else 14
         elif bb == 14:
@@ -345,7 +349,8 @@ def lift_117bf4(cpu):
             _o = (sb["ds"] + 0x14DD6C) & 0xFFFFFFFF
             r[0] = (mem.r32(_o)) & 0xFFFFFFFF
             # 0x117D48  f6401c80       grp3
-            interp_one32(cpu, 0x117D48)  # (interpreter fallback)
+            _o = (sb["ds"] + r[0] + 0x1C) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 1, 0x80)
             # 0x117D4C  0f846b000000   jcc
             bb = 25 if cpu._cond(0x4) else 18
         elif bb == 18:

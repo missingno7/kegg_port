@@ -72,12 +72,13 @@ def lift_122d5f(cpu):
             _v = mem.r16(_o)
             r[5] = (_v) & 0xFFFFFFFF
             # 0x122D94  66f705748314000100 grp3
-            interp_one32(cpu, 0x122D94)  # (interpreter fallback)
+            _o = (sb["ds"] + 0x148374) & 0xFFFFFFFF
+            cpu._grp3_op(0, False, _o, 2, 0x1)
             # 0x122D9D  7415           jcc
             bb = 5 if cpu._cond(0x4) else 3
         elif bb == 3:
             # 0x122D9F  66f7c50200     grp3
-            interp_one32(cpu, 0x122D9F)  # (interpreter fallback)
+            cpu._grp3_op(0, True, 5, 2, 0x2)
             # 0x122DA4  7421           jcc
             bb = 7 if cpu._cond(0x4) else 4
         elif bb == 4:
@@ -107,7 +108,7 @@ def lift_122d5f(cpu):
             bb = 7
         elif bb == 5:
             # 0x122DB4  66f7c50100     grp3
-            interp_one32(cpu, 0x122DB4)  # (interpreter fallback)
+            cpu._grp3_op(0, True, 5, 2, 0x1)
             # 0x122DB9  740c           jcc
             bb = 7 if cpu._cond(0x4) else 6
         elif bb == 6:

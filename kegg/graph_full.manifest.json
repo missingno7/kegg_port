@@ -32,7 +32,7 @@
   ],
   "reserved_seams_note": "Replay/verification DRIVER observation seams that must stay interpreted so the runtime can instrument them. 0x119D40 is the frame-tick routine the replay FrameClock replaces with its per-frame tick; if lifted, a linked caller dispatches the tick under call_linked32's near-ret contract (which the tick's interp-one-and-continue violates) and the replay stalls immediately. Free-running convergence cannot discover these (it uses no FrameClock); they are found only under replay-driven execution.",
   "liftable_census": 509,
-  "graph_functions": 474,
+  "graph_functions": 473,
   "graph_eips": [
     "0x123FA3",
     "0x11C20D",
@@ -382,7 +382,6 @@
     "0x121365",
     "0x1212FA",
     "0x1241D0",
-    "0x121DF8",
     "0x122B94",
     "0x122A9C",
     "0x11C936",

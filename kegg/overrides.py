@@ -40,6 +40,7 @@ from kegg.recovered.effects import spawn_effect
 from kegg.recovered.physics import rects_overlap, swap_ball_y
 from kegg.recovered.present import (set_clip_rect, set_draw_params,
                                     swap_display_pages)
+from kegg.recovered.gif import decode_gif
 from kegg.recovered.rle_blit import decode_plane_pass
 from kegg.recovered.sequence import step_sequence
 
@@ -55,6 +56,7 @@ from kegg.logic_hooks import (anim_timers_118345, build_draw_list_1183b1,
                               update_frame_timers_119e54)
 from kegg.render_hooks import (blit_1222d1, blit2_1225ff,
                                blit_queue_entry_122288)
+from kegg.asset_hooks import gif_decode_121df8
 
 # Property tags carried on every faithful DOS-memory-backed override.
 _FAITHFUL = frozenset({"cpu-adapted", "dos-memory-backed"})
@@ -93,6 +95,9 @@ _OVERRIDES: tuple[_Override, ...] = (
     # draw (the interpreted prologue was the largest CPython frame cost)
     _leaf(0x122288, decode_plane_pass, blit_queue_entry_122288,
           "blit_queue_entry_122288"),
+    # asset unpacker: the GIF87a LZW image decoder (title/menu/score screens) —
+    # the hottest load routine (~3.86M interpreted instr per screen on CPython)
+    _leaf(0x121DF8, decode_gif, gif_decode_121df8, "gif_decode_121df8"),
     # gameplay-logic leaves
     _leaf(0x118345, update_anim_timers, anim_timers_118345, "anim_timers_118345"),
     _leaf(0x1183B1, build_draw_list, build_draw_list_1183b1, "build_draw_list_1183b1"),
@@ -123,9 +128,12 @@ OVERRIDE_EIPS: tuple[int, ...] = tuple(o.eip for o in _OVERRIDES)
 # adapters).  Proven byte-exact against the ASM oracle over the ball-heavy
 # gameplay snapshot.
 GRAPH_HOT_DIR = Path(__file__).resolve().parent / "graph_hot"
+# NB: 0x121DF8 (the GIF decoder) was a member until it became an authored
+# override (gif_decode_121df8); authored EIPs and the generated graphs must
+# stay disjoint, so it is intentionally absent here.
 GRAPH_HOT_EIPS: tuple[int, ...] = (
     0x1185A4, 0x122D5F, 0x1191A3, 0x117BF4, 0x118066,
-    0x122A9C, 0x122B94, 0x121DF8, 0x11B1DF, 0x1230B7,
+    0x122A9C, 0x122B94, 0x11B1DF, 0x1230B7,
 )
 GENERATED_GRAPH_ID = "generated-hot-graph"
 

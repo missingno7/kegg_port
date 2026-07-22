@@ -153,3 +153,12 @@ S1 now (Atlas queries over the corpus), S2 next (biggest recovery effort,
 fully parallel to other work), S3+S4 together (region + native backend),
 S5 last. The stereo enhancement ships as soon as S4's faithful-native parity
 holds — stereo is a presentation flag on the same native backend.
+
+**S2 leads (execution sampling, menu music):** the scheduler tick lives at
+`0x1202xx` (calls `0x1245D0` at site 0x120217) and runs INSIDE the idle/vsync
+loop — cooperative slices, one per iteration; the sound task's top loop
+(check-work/yield) is at `~0x125861` (immediately after the trampoline
+table); the mix work proper points into the `0x124xxx` page (executed only on
+block completion).  Note: both stacks share the 0x14xxxx 64KiB region — the
+observer's per-region tags rarely trigger on KE; the esp+4 caller-level
+unwind is the load-bearing rule.

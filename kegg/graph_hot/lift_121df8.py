@@ -307,7 +307,7 @@ def lift_121df8(cpu):
             _o = (sb["ds"] + 0x148355) & 0xFFFFFFFF
             mem.w16(_o, 0x908)
             # 0x121F56  660fbae006     grp8
-            interp_one32(cpu, 0x121F56)  # (interpreter fallback)
+            cpu._bit_op_do('bt', True, 0, 2, 0x6)
             # 0x121F5B  57             push
             cpu.push(r[7], 4)
             # 0x121F5C  56             push

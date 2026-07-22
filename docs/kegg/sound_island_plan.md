@@ -47,8 +47,24 @@ ISR-extent trace (120 IRQ7 deliveries) + static caller/IO sweep + disassembly:
 - Port-I/O concentration: 72 in/out at `0x121xxx` (ISR + DSP protocol), 44 at
   `0x123xxx` (primitives + DSP helpers); the rest is VGA/vsync elsewhere.
 
+**S2 finding — the sound engine is a COROUTINE.**  The "mixer chain" is KE's
+context-switch machinery: `0x1256EA` saves the register context into a task
+block (eax..esi at +0..+0x14, carry→+0x18, SS:SP into the TCB at +6) and
+`0x125722` restores a context block and ``ret``s into a 3-byte-entry
+trampoline table at `0x1257C8` (task dispatch).  The sound engine runs as a
+TASK on its own stack — which is why the ISR stack-switches (the Atlas
+observer's per-stack tracking exists because of this) and why `0x1245D0` is
+"build 12-byte params (`0x125AC8`) + switch".  All five context-switch
+routines are lifted + oracle-verified (kegg/lifted/lift_1245ad, _1245d0,
+_1256ea, _125722, _125ac8; the ISR lift_121258 is emitted but NOT_REACHED in
+bare pmlift — no SB attached, a pmlift gap for IRQ-driven code).  The real
+mix loop lives in the SOUND TASK's body (entered via the trampoline) — next
+step: trace the task-side execution to find and recover it, and map the TCB
+table.
+
 **Known globals (symbol-ledger candidates)**: `[0x14E2FC]` SB base port,
-`[0x147458]` sound-active flag, `[0x14744C]/[0x14745C]` block cursor/end.
+`[0x147458]` sound-active flag, `[0x14744C]/[0x14745C]` block cursor/end,
+`0x1257C8` task trampoline table.
 Atlas corroboration: `0x11FA42` (per-frame wait/poll tick, callers incl. the
 menu idle `0x110951`) spins through sound waits at level transitions — the
 frame-parked stretches the replay timeline cannot subdivide.

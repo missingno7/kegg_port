@@ -9,8 +9,9 @@ form for yet -- they are exact, but they are also the to-do list.
 from __future__ import annotations
 
 from dos_re.cpu import CF, ZF
-from dos_re.lift.runtime32 import (LiftRuntimeError, check_signature,
-                                   emulate_call32, emulate_int32, interp_one32)
+from dos_re.lift.runtime32 import (LiftRuntimeError, call_linked32,
+                                   check_signature, emulate_call32,
+                                   emulate_int32, interp_one32)
 
 ENTRY = 0x1245AD
 SIGNATURE = bytes.fromhex('535657558b6c241c')

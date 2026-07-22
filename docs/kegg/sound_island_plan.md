@@ -162,3 +162,14 @@ table); the mix work proper points into the `0x124xxx` page (executed only on
 block completion).  Note: both stacks share the 0x14xxxx 64KiB region — the
 observer's per-region tags rarely trigger on KE; the esp+4 caller-level
 unwind is the load-bearing rule.
+
+**S2 refill chain (DMA write-trap, measured):** the DMA buffer is 1280 bytes
+in LOW DOS memory (0x64EFF..0x653FF here; two 640-sample halves).  Exactly one
+site writes it: the `rep movsd` of `0x123889` — a GENERIC direction-aware
+memcpy(src,dst,len) with VGA-aperture guards (not sound-specific).  The
+sound-engine per-block body lives at `0x11C294..0x11C4xx` (reached from the
+guarded per-slice tick 0x123B72 when the 'S','S' flags at [0x14E48D]/[0x14E48F]
+are set; calls the memcpy at site 0x11C478): stream/mix the next 640 bytes,
+copy into the just-played DMA half, coordinate the ISR's DSP re-arm.  NEXT:
+lift + read 0x11C294's function to map the voice table and .DIG stream
+cursors → recovered/sound.py.

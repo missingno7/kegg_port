@@ -35,3 +35,6 @@ frame.png
 
 # generated full-game graph (rebuilt from KE.EXE by scripts/build_full_graph.py)
 kegg/graph_full/
+
+# detached boot image (game code+data; rebuilt from KE.EXE by scripts/detached.py capture)
+artifacts/detached_boot/

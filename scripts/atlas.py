@@ -32,7 +32,7 @@ for p in (str(ROOT), str(ROOT / "dos_re")):
 from dos_re.atlas import ExecutionAtlas                      # noqa: E402
 from dos_re.replay import ReplayArtifact, ReplayExecutionIdentity  # noqa: E402
 from dos_re.pm_replay_evidence import (                       # noqa: E402
-    observe_pm_replay, validate_pm_replay, PMReplayDriver)
+    observe_pm_replay, validate_pm_replay, PMReplayDriver, ReplayStalled)
 from dos_re.lift.decode32 import decode32                     # noqa: E402
 
 from kegg.identity import PROGRAM, function_id, image_identity  # noqa: E402
@@ -114,27 +114,37 @@ def _atlas() -> ExecutionAtlas:
 def cmd_observe(args) -> int:
     fmap = _function_map()
     print(f"observing with {len(fmap)} known function entries")
+    bad = 0
     for replay in args.replays:
         oracle, _ = _profiles(replay)
         t0 = time.monotonic()
-        recorder = observe_pm_replay(replay, oracle, _bare_runtime, fmap,
-                                     provenance={"tool": "kegg/scripts/atlas.py",
-                                                 "pass": "oracle-observation-v5"})
+        try:
+            recorder = observe_pm_replay(replay, oracle, _bare_runtime, fmap,
+                                         provenance={"tool": "kegg/scripts/atlas.py",
+                                                     "pass": "oracle-observation-v5"})
+        except ReplayStalled as exc:
+            print(f"  {replay}: STALLED -- excluded from corpus ({exc})")
+            bad += 1
+            continue
         visits = recorder.visits.records()
         complete = sum(1 for v in visits if not v.incomplete)
         calls = sum(v.invocation_count for v in visits)
         print(f"  {replay}: {len(visits)} functions visited "
               f"({complete} complete), {calls} invocations, "
               f"{time.monotonic() - t0:.1f}s")
-    return 0
+    return 1 if bad else 0
 
 
 def cmd_validate(args) -> int:
     for replay in args.replays:
         oracle, candidate = _profiles(replay)
         t0 = time.monotonic()
-        result = validate_pm_replay(replay, oracle, candidate,
-                                    _bare_runtime, _bare_runtime)
+        try:
+            result = validate_pm_replay(replay, oracle, candidate,
+                                        _bare_runtime, _bare_runtime)
+        except ReplayStalled as exc:
+            print(f"  {replay}: STALLED -- not trustable ({exc})")
+            return 1
         artifact = ReplayArtifact.open(replay)
         print(f"  {replay}: equivalent={result.equivalent} "
               f"trusted={artifact.trusted} ({time.monotonic() - t0:.1f}s)")

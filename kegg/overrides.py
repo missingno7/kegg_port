@@ -38,8 +38,9 @@ from kegg.recovered.anim import (build_draw_list, load_current_object,
 from kegg.recovered.collision import process_brick_list, remove_list_element
 from kegg.recovered.effects import spawn_effect
 from kegg.recovered.physics import rects_overlap, swap_ball_y
-from kegg.recovered.present import (fade_palette_stream, set_clip_rect,
-                                    set_draw_params, swap_display_pages)
+from kegg.recovered.present import (deinterleave_plane, fade_palette_stream,
+                                    set_clip_rect, set_draw_params,
+                                    swap_display_pages)
 from kegg.recovered.gif import decode_gif
 from kegg.recovered.rle_blit import decode_plane_pass
 from kegg.recovered.sequence import step_sequence
@@ -56,7 +57,8 @@ from kegg.logic_hooks import (anim_timers_118345, build_draw_list_1183b1,
                               update_frame_timers_119e54)
 from kegg.render_hooks import (blit_1222d1, blit2_1225ff,
                                blit_queue_entry_122288)
-from kegg.asset_hooks import gif_decode_121df8, palette_fade_123a48
+from kegg.asset_hooks import (gif_decode_121df8, palette_fade_123a48,
+                              planar_upload_122f30)
 
 # Property tags carried on every faithful DOS-memory-backed override.
 _FAITHFUL = frozenset({"cpu-adapted", "dos-memory-backed"})
@@ -101,6 +103,8 @@ _OVERRIDES: tuple[_Override, ...] = (
     # the VGA palette fade that follows each image load (per-frame during
     # title/menu fades -- the biggest interpreted cost left in that path)
     _leaf(0x123A48, fade_palette_stream, palette_fade_123a48, "palette_fade_123a48"),
+    # linear -> Mode X planar upload: what puts a decoded image on screen
+    _leaf(0x122F30, deinterleave_plane, planar_upload_122f30, "planar_upload_122f30"),
     # gameplay-logic leaves
     _leaf(0x118345, update_anim_timers, anim_timers_118345, "anim_timers_118345"),
     _leaf(0x1183B1, build_draw_list, build_draw_list_1183b1, "build_draw_list_1183b1"),

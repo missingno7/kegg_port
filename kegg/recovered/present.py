@@ -46,6 +46,18 @@ def swap_display_pages(state) -> None:
 DAC_MAX = 0x3F
 
 
+def deinterleave_plane(src, src_off: int, count: int, plane: int):
+    """One Mode X plane's bytes out of a linear image (recovered from 0x122F30).
+
+    The planar upload walks the source with a stride of 4, starting at
+    ``plane``, writing ``count`` consecutive bytes into that plane — so plane
+    ``p`` receives source bytes ``p, p+4, p+8, ...``.  Returned as a slice so
+    callers can hand it straight to a plane buffer.
+    """
+    start = src_off + plane
+    return src[start:start + 4 * count:4]
+
+
 def fade_palette_stream(src, src_off: int, count: int, fade: int, eax_in: int):
     """The DAC byte stream of the palette fade at 0x123A48.
 

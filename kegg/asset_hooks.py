@@ -15,13 +15,21 @@ pushes so the sub-esp stack scratch matches the ASM oracle byte-for-byte
 from __future__ import annotations
 
 from kegg.recovered.gif import decode_gif
-from kegg.recovered.present import DAC_MAX, fade_palette_stream
+from kegg.recovered.present import (DAC_MAX, deinterleave_plane,
+                                    fade_palette_stream)
 
 GIF_DECODE = 0x121DF8
 PALETTE_FADE = 0x123A48
+PLANAR_UPLOAD = 0x122F30
 
 DAC_INDEX_PORT = 0x3C8
 DAC_DATA_PORT = 0x3C9
+GC_INDEX_PORT = 0x3CE            # graphics controller index/data (16-bit out)
+SEQ_INDEX_PORT = 0x3C4           # sequencer index/data (16-bit out)
+G_GC_MODE = 0x14E384             # shadow of GC register 5 (skips redundant I/O)
+G_MAP_MASK = 0x14E385            # shadow of the sequencer map mask
+APERTURE = 0xA0000
+APERTURE_END = 0xB0000
 
 
 def gif_decode_121df8(cpu):
@@ -107,4 +115,72 @@ def palette_fade_123a48(cpu):
             # NB: the raw (unmasked) difference — _flags_sub derives CF from it
             # going negative, exactly as the emitted `cmp` bodies pass it.
             cpu._flags_sub(last, DAC_MAX, last - DAC_MAX, 32)
+    cpu.eip = cpu.pop(4)                      # ret
+
+
+def planar_upload_122f30(cpu):
+    """Adapter for the linear -> Mode X planar upload at 0x122F30.
+
+    cdecl(src, dst, count): de-interleaves ``count`` linear bytes into the four
+    VGA planes at aperture address ``dst`` — plane ``p`` takes source bytes
+    ``p, p+4, p+8, ...``, ``count>>2`` of them.  This is what puts a decoded
+    image (e.g. the GIF title screen) on screen, so it runs right after every
+    image load.
+
+    Faithful details beyond the pixels: the GC mode and map-mask writes are
+    gated on shadow bytes (the original skips redundant port I/O), the routine
+    INCREMENTS the caller's ``src`` argument slot once per plane (ending at
+    ``src+4``), and it restores the map mask to 0x0F on the way out.
+    """
+    mem = cpu.mem
+    r = cpu.r
+    ds = cpu.sbase["ds"]
+    data = mem.data
+    esp0 = r[4]
+    arg0 = esp0 + 4                           # the slot the routine increments
+    src = mem.r32(arg0)
+    dst = mem.r32(esp0 + 8)
+    count = mem.r32(esp0 + 0xC)
+    n = (count >> 2) & 0xFFFFFFFF             # bytes per plane
+    write = cpu.port_writer
+
+    # GC register 5 (mode) = 0x40, only when the shadow says it isn't already.
+    if mem.r8(ds + G_GC_MODE) != 0x40:
+        mem.w8(ds + G_GC_MODE, 0x40)
+        if write is not None:
+            write(cpu, GC_INDEX_PORT, 0x4005, 16)
+
+    vga = mem.vga
+    doff = dst - APERTURE
+    # One slice per plane instead of `count` aperture writes: with write mode 0
+    # and a single-plane map mask, a byte written through the aperture lands in
+    # exactly that plane, so the strided gather is equivalent (and the oracle
+    # proves it).  Anything outside the aperture falls back to exact per-byte
+    # writes through the memory model.
+    fast = (vga is not None and n and APERTURE <= dst
+            and dst + n <= APERTURE_END)
+    for p in range(4):
+        mask = 1 << p
+        mem.w8(ds + G_MAP_MASK, mask)
+        if write is not None:
+            write(cpu, SEQ_INDEX_PORT, (mask << 8) | 0x02, 16)
+        s = ds + ((src + p) & 0xFFFFFFFF)
+        if fast:
+            vga.planes[p][doff:doff + n] = deinterleave_plane(data, s, n, 0)
+        else:
+            for i in range(n):
+                mem.w8((dst + i) & 0xFFFFFFFF, data[s + 4 * i])
+        mem.w32(arg0, (src + p + 1) & 0xFFFFFFFF)      # inc dword [ebp+8]
+
+    # Restore the map mask (gated on its shadow, like the original).
+    last_mask = mem.r8(ds + G_MAP_MASK)       # == 8 after the four planes
+    if last_mask != 0x0F:
+        mem.w8(ds + G_MAP_MASK, 0x0F)
+        if write is not None:
+            write(cpu, SEQ_INDEX_PORT, 0x0F02, 16)
+
+    cpu._pusha(4)                             # pushad frame (no inner pushes)
+    cpu._popa(4)
+    # Exit flags: the `cmp byte [map-mask shadow], 0x0F` that gated the restore.
+    cpu._flags_sub(last_mask, 0x0F, last_mask - 0x0F, 8)
     cpu.eip = cpu.pop(4)                      # ret

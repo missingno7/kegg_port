@@ -15,8 +15,13 @@ pushes so the sub-esp stack scratch matches the ASM oracle byte-for-byte
 from __future__ import annotations
 
 from kegg.recovered.gif import decode_gif
+from kegg.recovered.present import DAC_MAX, fade_palette_stream
 
 GIF_DECODE = 0x121DF8
+PALETTE_FADE = 0x123A48
+
+DAC_INDEX_PORT = 0x3C8
+DAC_DATA_PORT = 0x3C9
 
 
 def gif_decode_121df8(cpu):
@@ -57,4 +62,49 @@ def gif_decode_121df8(cpu):
     cpu.set_reg(0, 1, last_gct & 0xFF)
     cpu._shift(5, True, 0, 1, 2)              # shr al,2 -> sets ZF/PF/CF/SF
     r[0] = status & 0xFFFFFFFF               # movzx eax, word [0x148355]
+    cpu.eip = cpu.pop(4)                      # ret
+
+
+def palette_fade_123a48(cpu):
+    """Adapter for the VGA palette fade at 0x123A48.
+
+    cdecl(src, start_index, entries, fade): programs the DAC write index, then
+    streams ``entries*3`` components, each ``src[i] - fade`` clamped to 0..0x3F,
+    to the DAC data port.  KE runs this once per frame through a title/menu
+    fade, so it is the largest interpreted cost left in the image-display path.
+
+    Like the GIF decoder it is a pushad/popad routine with no internal pushes,
+    so every register is restored and only the stack's pushad frame and the
+    exit flags need reproducing.
+    """
+    mem = cpu.mem
+    r = cpu.r
+    ds = cpu.sbase["ds"]
+    esp0 = r[4]
+    src = mem.r32(esp0 + 4)
+    start = mem.r32(esp0 + 8)
+    entries = mem.r32(esp0 + 0xC)
+    fade = mem.r32(esp0 + 0x10)
+
+    count = (entries * 3) & 0xFFFFFFFF        # edi=arg2; ebx+=ebx; edi+=ebx => 3*arg2
+    stream, low, last = fade_palette_stream(mem.data, ds + src, count, fade, start)
+
+    write = cpu.port_writer
+    if write is not None:
+        write(cpu, DAC_INDEX_PORT, start & 0xFF, 8)
+        for b in stream:
+            write(cpu, DAC_DATA_PORT, b, 8)
+
+    # Stack scratch: pushad only (no pushes inside the loop).
+    cpu._pusha(4)
+    cpu._popa(4)
+    # Exit flags come from the LAST component's compare: the negative branch
+    # ends on `sub eax,eax`, otherwise on `cmp eax,0x3F`.
+    if count:
+        if low:
+            cpu._flags_sub(last, last, 0, 32)
+        else:
+            # NB: the raw (unmasked) difference — _flags_sub derives CF from it
+            # going negative, exactly as the emitted `cmp` bodies pass it.
+            cpu._flags_sub(last, DAC_MAX, last - DAC_MAX, 32)
     cpu.eip = cpu.pop(4)                      # ret

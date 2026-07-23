@@ -40,3 +40,45 @@ def swap_display_pages(state) -> None:
     state.page_tmp = state.page1
     state.page1 = state.page0
     state.page0 = state.page_tmp
+
+
+# Clamp ceiling for a VGA DAC component (6-bit).
+DAC_MAX = 0x3F
+
+
+def fade_palette_stream(src, src_off: int, count: int, fade: int, eax_in: int):
+    """The DAC byte stream of the palette fade at 0x123A48.
+
+    Each component is ``src[i] - fade`` clamped to 0..0x3F, written to the DAC
+    data port.  Returns ``(stream, clamped_low, last_value)``:
+
+    * ``stream`` — the ``count`` bytes to send to the DAC;
+    * ``clamped_low`` — whether the LAST component took the negative branch
+      (``sub eax,eax``) rather than the ``cmp eax,0x3F`` branch;
+    * ``last_value`` — the pre-clamp 32-bit EAX of the last component.
+
+    The caller needs the last two to reproduce the routine's exit flags.
+
+    Faithful detail: EAX is 32-bit and ``lodsb`` replaces only AL, so the high
+    bytes of the incoming EAX (the DAC start index) take part in the first
+    subtract until a clamp zeroes them — exactly as the ASM behaves.  For the
+    start indices KE uses (< 256) those high bytes are already zero.
+    """
+    out = bytearray(count)
+    eax = eax_in & 0xFFFFFFFF
+    low = False
+    val = eax
+    for i in range(count):
+        eax = (eax & 0xFFFFFF00) | src[src_off + i]
+        eax = (eax - fade) & 0xFFFFFFFF
+        val = eax
+        signed = eax - 0x100000000 if eax & 0x80000000 else eax
+        if signed < 0:
+            eax = 0                      # sub eax,eax
+            low = True
+        else:
+            low = False
+            if signed > DAC_MAX:
+                eax = DAC_MAX            # mov eax,ebp
+        out[i] = eax & 0xFF
+    return out, low, val
